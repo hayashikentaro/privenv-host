@@ -49,3 +49,9 @@ HostConfig capability
 Vault values are materialized inside the Host-internal `ResolvedExecutionContext` only. The values must not be returned to the Guest or written to audit logs.
 
 Audit logs may include env names and classifications. They must not include values.
+
+## Normal and Demo Modes
+
+`privenv-host run` is normal mode. If `.privenv/vault.json` is missing and a capability requires env materialization, the Host returns a structured error instead of silently using fixture vault data.
+
+`privenv-host demo-run` is explicit fixture/demo mode. It may use fixture vault data when project files are missing and must not be used as a real Host secret boundary.

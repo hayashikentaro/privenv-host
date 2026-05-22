@@ -16,8 +16,8 @@ async function readStdin(): Promise<string> {
 async function main(): Promise<void> {
   const [, , command] = process.argv;
 
-  if (command !== "run") {
-    process.stderr.write("Usage: privenv-host run\n");
+  if (command !== "run" && command !== "demo-run") {
+    process.stderr.write("Usage: privenv-host run | privenv-host demo-run\n");
     process.exitCode = 1;
     return;
   }
@@ -25,7 +25,7 @@ async function main(): Promise<void> {
   const input = await readStdin();
 
   try {
-    const runtimeInputs = await loadHostRuntimeInputs({ allowFixtureFallback: true });
+    const runtimeInputs = await loadHostRuntimeInputs({ allowFixtureFallback: command === "demo-run" });
     const request = parseEffectRequest(input);
     const { response } = handleEffectRequest({
       request,

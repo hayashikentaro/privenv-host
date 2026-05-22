@@ -102,3 +102,7 @@ Audit logs must not record:
 ## Local Vault
 
 `.privenv/vault.json` is Host-owned plaintext development storage in the MVP. Guests must never read it. Vault values must never appear in manifests, responses, or audit logs. Real projects must gitignore `.privenv/`. Encryption and external vault integrations are future work.
+
+## Fixture Mode
+
+`privenv-host run` must not use fixture config or fixture vault fallback implicitly. `privenv-host demo-run` is the only mode allowed to use fixture fallback, and it is unsafe/demo-only.

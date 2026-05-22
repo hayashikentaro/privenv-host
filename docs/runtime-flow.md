@@ -2,12 +2,24 @@
 
 This document describes the initial Host-side runtime skeleton. It is not a production secret manager and does not implement real command execution.
 
+## CLI Modes
+
+`privenv-host run` is normal mode and uses `allowFixtureFallback: false`. It never silently uses fixture config or fixture vault data.
+
+`privenv-host demo-run` is fixture/demo mode and uses `allowFixtureFallback: true`. It may use fixture config and fixture vault data only because the operator selected demo mode explicitly.
+
 ## Development command
 
-The current vertical slice is exercised with:
+The normal-mode vertical slice is exercised with:
 
 ```text
 echo EFFECT_REQUEST_JSON | npm run dev -- run
+```
+
+The demo-only fixture slice is exercised with:
+
+```text
+echo EFFECT_REQUEST_JSON | npm run dev -- demo-run
 ```
 
 npm run dev builds the TypeScript skeleton and runs the Phase 1 stdio CLI.
@@ -18,7 +30,7 @@ The CLI loads `privenv.host.json` from the current working directory when presen
 
 ## Local Vault Loading
 
-The CLI loads `.privenv/vault.json` from the current working directory when present. If Host config is present and a required env reference cannot be resolved because the vault is missing, runtime returns a structured Host error. Fixture vault fallback is used only when the fixture Host config fallback is active.
+The CLI loads `.privenv/vault.json` from the current working directory when present. If Host config is present and a required env reference cannot be resolved because the vault is missing, normal runtime returns a structured Host error. Fixture vault fallback is used only in explicit demo-run mode when fixture Host config fallback is active.
 
 ## Flow
 

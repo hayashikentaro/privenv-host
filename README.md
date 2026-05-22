@@ -68,6 +68,12 @@ The Guest:
 
 `.privenv/vault.json` is a Host-owned plaintext local vault for development. Guests must never read it. The MVP loader uses it only to materialize env values inside Host-internal execution context resolution. Encryption and external vault integrations are future work.
 
+## CLI Modes
+
+`privenv-host run` is normal mode. It loads `privenv.host.json` and `.privenv/vault.json` from the current project when present, and it never uses fixture vault fallback silently. If a capability requires env values and the vault is missing, it returns a structured error response.
+
+`privenv-host demo-run` is fixture/demo mode. It may use fixture config and fixture vault data when project-local files are missing. This mode is unsafe for real Host secret boundaries and exists only for tests and demos.
+
 ## Runtime Skeleton
 
 The initial TypeScript skeleton includes:

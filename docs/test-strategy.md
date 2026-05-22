@@ -106,3 +106,7 @@ The audit entry records `capabilityId`, not secret values.
 ## Vault Tests
 
 Vault tests use fixture values only. They must verify valid vault loading, invalid vault rejection, missing vault safety for required env references, and that responses and audit logs never contain raw vault values.
+
+## CLI Mode Tests
+
+Tests must verify that `run` does not use fixture fallback, `demo-run` can use fixture fallback, and normal mode with required env but missing vault fails with a structured response that contains no raw secret values.

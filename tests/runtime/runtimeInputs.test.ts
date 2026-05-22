@@ -62,3 +62,11 @@ test("loads local Host vault when present", async () => {
   assert.equal(inputs.vault?.get("DATABASE_URL"), "fixture-db-url");
   assert.equal(inputs.vault?.getClassification?.("DATABASE_URL"), "secret");
 });
+
+test("normal mode does not use fixture config or fixture vault when files are missing", async () => {
+  const inputs = await loadHostRuntimeInputs({ cwd: await tempDir(), allowFixtureFallback: false });
+
+  assert.equal(inputs.fallbackMode, "none");
+  assert.deepEqual(inputs.hostConfig.capabilities, []);
+  assert.equal(inputs.vault, undefined);
+});
