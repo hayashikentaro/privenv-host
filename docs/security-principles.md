@@ -106,3 +106,7 @@ Audit logs must not record:
 ## Fixture Mode
 
 `privenv-host run` must not use fixture config or fixture vault fallback implicitly. `privenv-host demo-run` is the only mode allowed to use fixture fallback, and it is unsafe/demo-only.
+
+## Passthrough
+
+`privenv-host` does not implement passthrough mode. Passthrough is an upper-layer or Guest-side operational mode for situations without an active untrusted Guest boundary. Host-side behavior remains limited to protected `run` and explicit `demo-run`.

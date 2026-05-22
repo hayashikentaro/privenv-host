@@ -8,6 +8,10 @@ This document describes the initial Host-side runtime skeleton. It is not a prod
 
 `privenv-host demo-run` is fixture/demo mode and uses `allowFixtureFallback: true`. It may use fixture config and fixture vault data only because the operator selected demo mode explicitly.
 
+## Passthrough Mode
+
+`privenv-host` does not implement passthrough mode. Passthrough belongs to an upper layer or Guest-side operation where no untrusted Guest boundary is active. Host runtime supports protected `run` and explicit `demo-run` only.
+
 ## Development command
 
 The normal-mode vertical slice is exercised with:

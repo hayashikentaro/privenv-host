@@ -21,6 +21,7 @@ The MVP is documentation-first and Host-side.
 - runtime implementation in the initial documentation pass
 - full OS sandbox implementation
 - generic AI agent runtime
+- passthrough mode in Host; passthrough belongs to an upper layer or Guest-side operation
 - external API gateway in MVP
 - production vault integration in MVP
 - Phase 2 Unix domain socket implementation

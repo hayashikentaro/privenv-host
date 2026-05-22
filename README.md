@@ -74,6 +74,10 @@ The Guest:
 
 `privenv-host demo-run` is fixture/demo mode. It may use fixture config and fixture vault data when project-local files are missing. This mode is unsafe for real Host secret boundaries and exists only for tests and demos.
 
+## Passthrough Mode
+
+`privenv-host` does not implement passthrough mode. Passthrough is an upper-layer or Guest-side operational mode for cases where no untrusted Guest boundary is active. Host supports only protected `run` and explicit `demo-run`.
+
 ## Runtime Skeleton
 
 The initial TypeScript skeleton includes:
