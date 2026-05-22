@@ -53,6 +53,7 @@ The Guest:
 - [Trust Model](docs/trust-model.md)
 - [Protocol](docs/protocol.md)
 - [Runtime Flow](docs/runtime-flow.md)
+- [Execution Context](docs/execution-context.md)
 - [Host Config Spec](docs/config-spec.md)
 - [MVP Scope](docs/mvp-scope.md)
 - [Test Strategy](docs/test-strategy.md)

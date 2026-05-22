@@ -114,3 +114,64 @@ test("resolves capability from supplied Host config", () => {
   assert.equal(result.response.ok, true);
   assert.equal(result.audit.capabilityId, "cmd.custom.test");
 });
+
+
+test("resolves vault-backed env internally without leaking raw values", () => {
+  const rawSecret = "fixture_secret_value_123";
+  const result = handleEffectRequest({
+    request: {
+      id: "req_vaulted",
+      type: "effect.request",
+      capabilityId: "cmd.fixture.vaulted"
+    },
+    vault: {
+      get(name) {
+        return name === "FIXTURE_TOKEN" ? rawSecret : undefined;
+      }
+    }
+  });
+
+  assert.equal(result.response.ok, true);
+  assert.equal(result.audit.capabilityId, "cmd.fixture.vaulted");
+  assert.deepEqual(result.audit.envNames, ["FIXTURE_TOKEN"]);
+  assert.doesNotMatch(JSON.stringify(result.response), new RegExp(rawSecret));
+  assert.doesNotMatch(JSON.stringify(result.audit), new RegExp(rawSecret));
+});
+
+test("unresolved vault env references produce structured Host errors without raw values", () => {
+  const result = handleEffectRequest({
+    request: {
+      id: "req_vault_missing",
+      type: "effect.request",
+      capabilityId: "cmd.fixture.vaulted"
+    },
+    vault: {
+      get() {
+        return undefined;
+      }
+    }
+  });
+
+  assert.equal(result.response.ok, false);
+  assert.equal(result.response.error?.code, "execution.unresolved_env");
+  assert.deepEqual(result.audit.envNames, ["FIXTURE_TOKEN"]);
+  assert.doesNotMatch(JSON.stringify(result.response), /fixture_secret_value_123/);
+  assert.doesNotMatch(JSON.stringify(result.audit), /fixture_secret_value_123/);
+});
+
+test("ResolvedExecutionContext remains internal-only", () => {
+  const result = handleEffectRequest({
+    request: {
+      id: "req_context_internal",
+      type: "effect.request",
+      capabilityId: "cmd.fixture.vaulted"
+    }
+  });
+
+  const responseText = JSON.stringify(result.response);
+  const auditText = JSON.stringify(result.audit);
+
+  assert.doesNotMatch(responseText, /ResolvedExecutionContext|FIXTURE_TOKEN|fixture_secret_value_123/);
+  assert.doesNotMatch(auditText, /ResolvedExecutionContext|fixture_secret_value_123/);
+  assert.match(auditText, /FIXTURE_TOKEN/);
+});

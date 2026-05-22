@@ -46,6 +46,19 @@ export const FIXTURE_HOST_CONFIG: HostConfig = {
       args: ["run", "typecheck"]
     }),
     commandCapability({
+      id: "cmd.fixture.vaulted",
+      description: "Fixture command that requires Host vault resolution.",
+      program: "npm",
+      args: ["test"],
+      env: [
+        {
+          name: "FIXTURE_TOKEN",
+          source: "secret",
+          exposedToGuest: false
+        }
+      ]
+    }),
+    commandCapability({
       id: "cmd.fixture.leaky",
       description: "Fixture command that emits fixture secrets for redaction tests.",
       program: "npm",

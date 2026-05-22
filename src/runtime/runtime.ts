@@ -2,12 +2,14 @@ import { createAuditId, createAuditRecord } from "../audit/index.js";
 import type { AuditRecord } from "../audit/index.js";
 import { FIXTURE_HOST_CONFIG } from "../config/index.js";
 import type { HostConfig } from "../config/index.js";
+import { ExecutionContextResolutionError, FIXTURE_VAULT, resolveExecutionContext } from "../execution/index.js";
+import type { VaultLookup } from "../execution/index.js";
 import { findCapability } from "../manifest/index.js";
 import { validateCapabilityExecutionPolicy } from "../policy/index.js";
 import type { EffectRequest, EffectResponse } from "../protocol/index.js";
 import { FIXTURE_SECRETS, redactStreams } from "../redact/index.js";
 import type { RedactionFixture } from "../redact/index.js";
-import { fakeExecuteCapability } from "./fakeExecution.js";
+import { fakeExecute } from "./fakeExecution.js";
 
 export interface RuntimeResult {
   response: EffectResponse;
@@ -17,10 +19,12 @@ export interface RuntimeResult {
 export function handleEffectRequest(input: {
   request: EffectRequest;
   hostConfig?: HostConfig;
+  vault?: VaultLookup;
   fixtureSecrets?: RedactionFixture[];
 }): RuntimeResult {
   const auditId = createAuditId();
   const hostConfig = input.hostConfig ?? FIXTURE_HOST_CONFIG;
+  const vault = input.vault ?? FIXTURE_VAULT;
   const guestExecutionPolicy = validateGuestRequestDoesNotCarryExecution(input.request);
 
   if (!guestExecutionPolicy.allowed) {
@@ -32,19 +36,7 @@ export function handleEffectRequest(input: {
       errorCode: "policy.guest_execution_fields_denied"
     });
 
-    return {
-      audit,
-      response: {
-        requestId: input.request.id,
-        type: "effect.response",
-        ok: false,
-        error: {
-          code: "policy.guest_execution_fields_denied",
-          message: guestExecutionPolicy.reason ?? "EffectRequest must reference a capabilityId, not command execution details."
-        },
-        auditId
-      }
-    };
+    return deniedResponse(input.request.id, auditId, audit, "policy.guest_execution_fields_denied", guestExecutionPolicy.reason ?? "EffectRequest must reference a capabilityId, not command execution details.");
   }
 
   const capability = findCapability(hostConfig, input.request.capabilityId);
@@ -58,21 +50,10 @@ export function handleEffectRequest(input: {
       errorCode: "policy.unknown_capability"
     });
 
-    return {
-      audit,
-      response: {
-        requestId: input.request.id,
-        type: "effect.response",
-        ok: false,
-        error: {
-          code: "policy.unknown_capability",
-          message: "Capability is not declared in the Host config."
-        },
-        auditId
-      }
-    };
+    return deniedResponse(input.request.id, auditId, audit, "policy.unknown_capability", "Capability is not declared in the Host config.");
   }
 
+  const envNames = capability.env.map((entry) => entry.name);
   const policy = validateCapabilityExecutionPolicy(capability);
   if (!policy.allowed) {
     const audit = createAuditRecord({
@@ -80,25 +61,32 @@ export function handleEffectRequest(input: {
       request: input.request,
       decision: "denied",
       status: "denied",
-      errorCode: "policy.command_denied"
+      errorCode: "policy.command_denied",
+      envNames
     });
 
-    return {
-      audit,
-      response: {
-        requestId: input.request.id,
-        type: "effect.response",
-        ok: false,
-        error: {
-          code: "policy.command_denied",
-          message: policy.reason ?? "Command is denied by Host policy."
-        },
-        auditId
-      }
-    };
+    return deniedResponse(input.request.id, auditId, audit, "policy.command_denied", policy.reason ?? "Command is denied by Host policy.");
   }
 
-  const execution = fakeExecuteCapability(capability);
+  let context;
+  try {
+    context = resolveExecutionContext({ capability, vault });
+  } catch (error) {
+    const code = error instanceof ExecutionContextResolutionError ? error.code : "execution.context_resolution_failed";
+    const message = error instanceof Error ? error.message : "Unable to resolve execution context.";
+    const audit = createAuditRecord({
+      auditId,
+      request: input.request,
+      decision: "denied",
+      status: "error",
+      errorCode: code,
+      envNames
+    });
+
+    return deniedResponse(input.request.id, auditId, audit, code, message);
+  }
+
+  const execution = fakeExecute(context);
   const redacted = redactStreams({
     stdout: execution.stdout,
     stderr: execution.stderr,
@@ -111,7 +99,8 @@ export function handleEffectRequest(input: {
     decision: "approved",
     status: "success",
     exitCode: execution.exitCode,
-    redactions: redacted.redactions
+    redactions: redacted.redactions,
+    envNames
   });
 
   return {
@@ -126,6 +115,25 @@ export function handleEffectRequest(input: {
         stderr: redacted.stderr,
         redactions: redacted.redactions
       },
+      auditId
+    }
+  };
+}
+
+function deniedResponse(
+  requestId: string,
+  auditId: string,
+  audit: AuditRecord,
+  code: string,
+  message: string
+): RuntimeResult {
+  return {
+    audit,
+    response: {
+      requestId,
+      type: "effect.response",
+      ok: false,
+      error: { code, message },
       auditId
     }
   };

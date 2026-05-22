@@ -12,5 +12,6 @@ export interface AuditRecord {
   status: "success" | "error" | "denied";
   exitCode?: number;
   redactions: RedactionSummary[];
+  envNames?: string[];
   errorCode?: string;
 }

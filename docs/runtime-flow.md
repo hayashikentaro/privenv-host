@@ -76,6 +76,10 @@ The skeleton keeps execution simulated only. It does not use shell=true, concate
 
 The skeleton validates capabilityId against a fixture Host policy. Safe manifest generation exposes only normal npm capabilities, while tests may use fixture-only capabilities to exercise denied commands and redaction behavior. Fixture capabilities must not contain secret values.
 
+## Execution Context
+
+After policy validation, the Host resolves capability env references through a vault lookup and creates a Host-internal `ResolvedExecutionContext`. Env values may exist inside this object only. They must not appear in safe manifests, EffectResponse JSON, or audit logs. Audit logs may record env names.
+
 ## Fake Execution
 
 The runtime currently uses a fake execution placeholder. It does not spawn a shell, run arbitrary commands, read `.env`, read `process.env`, or inject real secrets.
