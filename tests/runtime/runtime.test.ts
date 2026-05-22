@@ -165,13 +165,40 @@ test("ResolvedExecutionContext remains internal-only", () => {
       id: "req_context_internal",
       type: "effect.request",
       capabilityId: "cmd.fixture.vaulted"
+    },
+    vault: {
+      get(name) {
+        return name === "FIXTURE_TOKEN" ? "fixture_secret_value_123" : undefined;
+      },
+      getClassification(name) {
+        return name === "FIXTURE_TOKEN" ? "secret" : undefined;
+      }
     }
   });
 
   const responseText = JSON.stringify(result.response);
   const auditText = JSON.stringify(result.audit);
 
+  assert.equal(result.response.ok, true);
   assert.doesNotMatch(responseText, /ResolvedExecutionContext|FIXTURE_TOKEN|fixture_secret_value_123/);
   assert.doesNotMatch(auditText, /ResolvedExecutionContext|fixture_secret_value_123/);
   assert.match(auditText, /FIXTURE_TOKEN/);
+  assert.match(auditText, /secret/);
+});
+
+
+test("missing vault with required env fails safely", () => {
+  const result = handleEffectRequest({
+    request: {
+      id: "req_missing_vault",
+      type: "effect.request",
+      capabilityId: "cmd.fixture.vaulted"
+    }
+  });
+
+  assert.equal(result.response.ok, false);
+  assert.equal(result.response.error?.code, "execution.unresolved_env");
+  assert.deepEqual(result.audit.envNames, ["FIXTURE_TOKEN"]);
+  assert.doesNotMatch(JSON.stringify(result.response), /fixture_secret_value_123/);
+  assert.doesNotMatch(JSON.stringify(result.audit), /fixture_secret_value_123/);
 });

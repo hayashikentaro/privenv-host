@@ -10,4 +10,5 @@ export interface ResolvedExecutionContext {
 
 export interface VaultLookup {
   get(name: string): string | undefined;
+  getClassification?(name: string): string | undefined;
 }

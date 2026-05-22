@@ -13,5 +13,6 @@ export interface AuditRecord {
   exitCode?: number;
   redactions: RedactionSummary[];
   envNames?: string[];
+  classifications?: string[];
   errorCode?: string;
 }

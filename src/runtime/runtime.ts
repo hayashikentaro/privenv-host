@@ -2,7 +2,7 @@ import { createAuditId, createAuditRecord } from "../audit/index.js";
 import type { AuditRecord } from "../audit/index.js";
 import { FIXTURE_HOST_CONFIG } from "../config/index.js";
 import type { HostConfig } from "../config/index.js";
-import { ExecutionContextResolutionError, FIXTURE_VAULT, resolveExecutionContext } from "../execution/index.js";
+import { ExecutionContextResolutionError, resolveExecutionContext } from "../execution/index.js";
 import type { VaultLookup } from "../execution/index.js";
 import { findCapability } from "../manifest/index.js";
 import { validateCapabilityExecutionPolicy } from "../policy/index.js";
@@ -24,7 +24,7 @@ export function handleEffectRequest(input: {
 }): RuntimeResult {
   const auditId = createAuditId();
   const hostConfig = input.hostConfig ?? FIXTURE_HOST_CONFIG;
-  const vault = input.vault ?? FIXTURE_VAULT;
+  const vault = input.vault;
   const guestExecutionPolicy = validateGuestRequestDoesNotCarryExecution(input.request);
 
   if (!guestExecutionPolicy.allowed) {
@@ -54,6 +54,9 @@ export function handleEffectRequest(input: {
   }
 
   const envNames = capability.env.map((entry) => entry.name);
+  const classifications = capability.env
+    .map((entry) => vault?.getClassification?.(entry.name))
+    .filter((value): value is string => typeof value === "string");
   const policy = validateCapabilityExecutionPolicy(capability);
   if (!policy.allowed) {
     const audit = createAuditRecord({
@@ -62,7 +65,8 @@ export function handleEffectRequest(input: {
       decision: "denied",
       status: "denied",
       errorCode: "policy.command_denied",
-      envNames
+      envNames,
+      classifications
     });
 
     return deniedResponse(input.request.id, auditId, audit, "policy.command_denied", policy.reason ?? "Command is denied by Host policy.");
@@ -70,7 +74,17 @@ export function handleEffectRequest(input: {
 
   let context;
   try {
-    context = resolveExecutionContext({ capability, vault });
+    if (!vault && capability.env.length > 0) {
+      throw new ExecutionContextResolutionError(capability.env[0]?.name ?? "unknown");
+    }
+    context = resolveExecutionContext({
+      capability,
+      vault: vault ?? {
+        get() {
+          return undefined;
+        }
+      }
+    });
   } catch (error) {
     const code = error instanceof ExecutionContextResolutionError ? error.code : "execution.context_resolution_failed";
     const message = error instanceof Error ? error.message : "Unable to resolve execution context.";
@@ -80,7 +94,8 @@ export function handleEffectRequest(input: {
       decision: "denied",
       status: "error",
       errorCode: code,
-      envNames
+      envNames,
+      classifications
     });
 
     return deniedResponse(input.request.id, auditId, audit, code, message);
@@ -100,7 +115,8 @@ export function handleEffectRequest(input: {
     status: "success",
     exitCode: execution.exitCode,
     redactions: redacted.redactions,
-    envNames
+    envNames,
+    classifications
   });
 
   return {

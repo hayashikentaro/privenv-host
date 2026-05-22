@@ -16,6 +16,7 @@ export function createAuditRecord(input: {
   exitCode?: number;
   redactions?: RedactionSummary[];
   envNames?: string[];
+  classifications?: string[];
   errorCode?: string;
 }): AuditRecord {
   return {
@@ -31,6 +32,7 @@ export function createAuditRecord(input: {
     exitCode: input.exitCode,
     redactions: input.redactions ?? [],
     envNames: input.envNames ? [...input.envNames] : undefined,
+    classifications: input.classifications ? [...input.classifications] : undefined,
     errorCode: input.errorCode
   };
 }

@@ -55,6 +55,7 @@ The Guest:
 - [Runtime Flow](docs/runtime-flow.md)
 - [Execution Context](docs/execution-context.md)
 - [Host Config Spec](docs/config-spec.md)
+- [Vault Spec](docs/vault-spec.md)
 - [MVP Scope](docs/mvp-scope.md)
 - [Test Strategy](docs/test-strategy.md)
 - [Security Principles](docs/security-principles.md)
@@ -62,6 +63,10 @@ The Guest:
 ## Host Configuration
 
 `privenv.host.json` is a project-local Host-owned configuration file. It may name environment variables, but it must not contain raw environment values or secret values. Guests read generated safe manifests, not the Host config directly.
+
+## Local Vault
+
+`.privenv/vault.json` is a Host-owned plaintext local vault for development. Guests must never read it. The MVP loader uses it only to materialize env values inside Host-internal execution context resolution. Encryption and external vault integrations are future work.
 
 ## Runtime Skeleton
 

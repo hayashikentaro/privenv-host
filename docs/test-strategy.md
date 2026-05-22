@@ -102,3 +102,7 @@ Example audit entry:
 ```
 
 The audit entry records `capabilityId`, not secret values.
+
+## Vault Tests
+
+Vault tests use fixture values only. They must verify valid vault loading, invalid vault rejection, missing vault safety for required env references, and that responses and audit logs never contain raw vault values.

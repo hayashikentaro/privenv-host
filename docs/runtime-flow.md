@@ -16,6 +16,10 @@ npm run dev builds the TypeScript skeleton and runs the Phase 1 stdio CLI.
 
 The CLI loads `privenv.host.json` from the current working directory when present. If it is missing, the CLI falls back to a fixture Host config for tests and demos. The Guest does not read Host config directly.
 
+## Local Vault Loading
+
+The CLI loads `.privenv/vault.json` from the current working directory when present. If Host config is present and a required env reference cannot be resolved because the vault is missing, runtime returns a structured Host error. Fixture vault fallback is used only when the fixture Host config fallback is active.
+
 ## Flow
 
 ```text

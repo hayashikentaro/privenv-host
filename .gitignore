@@ -6,3 +6,6 @@ node_modules/
 !.env.example
 
 .npm-cache/
+.privenv/
+privenv.manifest.json
+audit.log.jsonl
