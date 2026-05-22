@@ -140,3 +140,65 @@ test("run can load local Host config and vault", () => {
   assert.equal(response.ok, true);
   assert.doesNotMatch(JSON.stringify(response), /fixture-db-url/);
 });
+
+function runManifest(options?: { cwd?: string }) {
+  return spawnSync(process.execPath, [CLI_PATH, "manifest"], {
+    cwd: options?.cwd ?? process.cwd(),
+    encoding: "utf8"
+  });
+}
+
+test("manifest command works with fixture config", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-manifest-fixture-"));
+  const child = runManifest({ cwd });
+
+  assert.equal(child.status, 0);
+  const manifest = JSON.parse(child.stdout);
+  assert.equal(manifest.version, "0.1");
+  assert.equal(manifest.capabilities.some((capability: { id: string }) => capability.id === "cmd.npm.test"), true);
+  assert.doesNotMatch(child.stdout, /fixture_secret_value_123|test_only_token_do_not_use|fixture-db-url/);
+});
+
+test("manifest command works with privenv.host.json and does not require vault", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-manifest-config-"));
+  writeHostConfigWithRequiredEnv(cwd);
+
+  const child = runManifest({ cwd });
+
+  assert.equal(child.status, 0);
+  const manifest = JSON.parse(child.stdout);
+  assert.equal(manifest.capabilities[0].id, "cmd.needs.db");
+  assert.equal(manifest.capabilities[0].env[0].name, "DATABASE_URL");
+  assert.equal(manifest.capabilities[0].env[0].exposedToGuest, false);
+  assert.doesNotMatch(child.stdout, /fixture-db-url|postgres:\/\/|fixture_secret_value_123|test_only_token_do_not_use/);
+});
+
+test("manifest command returns structured error for invalid config", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-manifest-invalid-"));
+  writeFileSync(
+    join(cwd, "privenv.host.json"),
+    JSON.stringify({
+      version: "0.1",
+      capabilities: [
+        {
+          id: "cmd.bad",
+          kind: "command",
+          description: "Bad config",
+          command: { program: "npm", args: ["test"] },
+          env: [{ name: "DATABASE_URL", source: "secret", exposedToGuest: true }],
+          timeoutMs: 30000,
+          redactionPolicy: "default"
+        }
+      ]
+    }),
+    "utf8"
+  );
+
+  const child = runManifest({ cwd });
+
+  assert.equal(child.status, 1);
+  const response = JSON.parse(child.stdout);
+  assert.equal(response.ok, false);
+  assert.equal(response.error.code, "manifest.config_error");
+  assert.doesNotMatch(child.stdout, /fixture_secret_value_123|test_only_token_do_not_use/);
+});
