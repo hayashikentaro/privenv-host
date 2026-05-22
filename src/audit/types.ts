@@ -2,6 +2,7 @@ import type { RedactionSummary } from "../protocol/types.js";
 
 export interface AuditRecord {
   auditId: string;
+  timestamp: string;
   requestId: string;
   capabilityId: string;
   guest?: {

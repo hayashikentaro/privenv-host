@@ -64,6 +64,10 @@ The Guest:
 
 `privenv.host.json` is a project-local Host-owned configuration file. It may name environment variables, but it must not contain raw environment values or secret values. Guests read generated safe manifests, not the Host config directly.
 
+## Audit Logs
+
+`privenv-host run` and `privenv-host demo-run` append safe audit records to `.privenv/audit.log.jsonl`. The audit log is Host-owned JSONL. Guests must never read it directly. Records describe capability usage, request IDs, decisions, statuses, env names, redaction summaries, errors, and timestamps, but never raw secret or vault values. `.privenv/audit.log.jsonl` is gitignored.
+
 ## Safe Manifest
 
 The Host can generate a Guest-readable manifest derived from `privenv.host.json`:

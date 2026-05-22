@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -13,6 +13,15 @@ function runCli(input: string, options?: { command?: "run" | "demo-run"; cwd?: s
     input,
     encoding: "utf8"
   });
+}
+
+function readAuditLog(cwd: string): Array<Record<string, unknown>> {
+  const path = join(cwd, ".privenv", "audit.log.jsonl");
+  return readFileSync(path, "utf8")
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
 }
 
 function writeHostConfigWithRequiredEnv(cwd: string): void {
@@ -201,4 +210,68 @@ test("manifest command returns structured error for invalid config", () => {
   assert.equal(response.ok, false);
   assert.equal(response.error.code, "manifest.config_error");
   assert.doesNotMatch(child.stdout, /fixture_secret_value_123|test_only_token_do_not_use/);
+});
+
+
+test("run writes safe audit JSONL records", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-audit-success-"));
+  mkdirSync(join(cwd, ".privenv"));
+  writeHostConfigWithRequiredEnv(cwd);
+  writeFileSync(
+    join(cwd, ".privenv", "vault.json"),
+    JSON.stringify({
+      version: "0.1",
+      secrets: {
+        DATABASE_URL: { value: "fixture-db-url", classification: "secret" }
+      }
+    }),
+    "utf8"
+  );
+
+  const child = runCli(
+    JSON.stringify({
+      id: "req_cli_audit_success",
+      type: "effect.request",
+      capabilityId: "cmd.needs.db"
+    }),
+    { command: "run", cwd }
+  );
+
+  assert.equal(child.status, 0);
+  const records = readAuditLog(cwd);
+  assert.equal(records.length, 1);
+  assert.equal(records[0].requestId, "req_cli_audit_success");
+  assert.equal(records[0].capabilityId, "cmd.needs.db");
+  assert.equal(typeof records[0].timestamp, "string");
+  assert.deepEqual(records[0].envNames, ["DATABASE_URL"]);
+  assert.doesNotMatch(JSON.stringify(records[0]), /fixture-db-url|fixture_secret_value_123|test_only_token_do_not_use/);
+});
+
+test("denied requests are audited", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-audit-denied-"));
+  const child = runCli(
+    JSON.stringify({
+      id: "req_cli_audit_denied",
+      type: "effect.request",
+      capabilityId: "cmd.npm.test"
+    }),
+    { command: "run", cwd }
+  );
+
+  assert.equal(child.status, 0);
+  const records = readAuditLog(cwd);
+  assert.equal(records.length, 1);
+  assert.equal(records[0].decision, "denied");
+  assert.equal(records[0].status, "denied");
+  assert.equal(records[0].errorCode, "policy.unknown_capability");
+});
+
+test("manifest command does not create audit log", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-manifest-no-audit-"));
+  writeHostConfigWithRequiredEnv(cwd);
+
+  const child = runManifest({ cwd });
+
+  assert.equal(child.status, 0);
+  assert.equal(existsSync(join(cwd, ".privenv", "audit.log.jsonl")), false);
 });

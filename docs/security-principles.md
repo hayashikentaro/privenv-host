@@ -110,3 +110,7 @@ Audit logs must not record:
 ## Passthrough
 
 `privenv-host` does not implement passthrough mode. Passthrough is an upper-layer or Guest-side operational mode for situations without an active untrusted Guest boundary. Host-side behavior remains limited to protected `run` and explicit `demo-run`.
+
+## Audit Persistence
+
+Audit logs are Host-owned JSONL at `.privenv/audit.log.jsonl`. Guests must never read them directly. Logs may record capability IDs, request IDs, decisions, statuses, env names, classifications, redaction summaries, error codes, and timestamps. Logs must never include raw secret values, vault values, or fixture secret values.

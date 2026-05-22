@@ -21,6 +21,7 @@ export function createAuditRecord(input: {
 }): AuditRecord {
   return {
     auditId: input.auditId,
+    timestamp: new Date().toISOString(),
     requestId: input.request.id,
     capabilityId: input.request.capabilityId,
     guest: {

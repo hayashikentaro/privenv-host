@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { appendAuditRecord } from "../audit/index.js";
 import { loadHostConfigFromCwd } from "../config/index.js";
 import { createSafeManifest } from "../manifest/index.js";
 import { parseEffectRequest, ProtocolParseError } from "../protocol/index.js";
@@ -34,11 +35,12 @@ async function main(): Promise<void> {
   try {
     const runtimeInputs = await loadHostRuntimeInputs({ allowFixtureFallback: command === "demo-run" });
     const request = parseEffectRequest(input);
-    const { response } = handleEffectRequest({
+    const { response, audit } = handleEffectRequest({
       request,
       hostConfig: runtimeInputs.hostConfig,
       vault: runtimeInputs.vault
     });
+    await appendAuditSafely(audit);
     process.stdout.write(`${JSON.stringify(response)}\n`);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error.";
@@ -46,6 +48,14 @@ async function main(): Promise<void> {
 
     process.stdout.write(`${JSON.stringify(errorResponse(code, message))}\n`);
     process.exitCode = 1;
+  }
+}
+
+async function appendAuditSafely(audit: Parameters<typeof appendAuditRecord>[0]): Promise<void> {
+  try {
+    await appendAuditRecord(audit);
+  } catch {
+    process.stderr.write("Warning: failed to write Host audit log.\n");
   }
 }
 

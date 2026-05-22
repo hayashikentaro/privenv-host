@@ -141,6 +141,10 @@ The Host creates an audit record containing:
 
 Audit records must not contain secret values.
 
+## Audit Persistence
+
+For `run` and `demo-run`, the Host appends the safe audit record to `.privenv/audit.log.jsonl` after handling the request. The file is Host-owned JSONL and is gitignored. Audit records include timestamps and capability usage metadata, not secret values. `manifest` does not write audit records for now.
+
 ## Response
 
 The Host returns an `EffectResponse` JSON object to stdout.

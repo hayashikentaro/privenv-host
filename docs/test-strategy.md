@@ -110,3 +110,7 @@ Vault tests use fixture values only. They must verify valid vault loading, inval
 ## CLI Mode Tests
 
 Tests must verify that `run` does not use fixture fallback, `demo-run` can use fixture fallback, and normal mode with required env but missing vault fails with a structured response that contains no raw secret values.
+
+## Audit Persistence Tests
+
+Audit persistence tests must verify JSONL creation, timestamps, denied-request auditing, env names without env values, fixture secret guard behavior, and that `manifest` does not create an audit log.
