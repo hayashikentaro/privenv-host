@@ -1,2 +1,2 @@
-export { createSafeManifest, findCapability, STATIC_CAPABILITIES } from "./staticManifest.js";
+export { createSafeManifest, findCapability } from "./safeManifest.js";
 export type { HostManifest, ManifestCapability, ManifestCommand, ManifestEnvReference } from "./types.js";

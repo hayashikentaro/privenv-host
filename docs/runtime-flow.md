@@ -12,6 +12,10 @@ echo EFFECT_REQUEST_JSON | npm run dev -- run
 
 npm run dev builds the TypeScript skeleton and runs the Phase 1 stdio CLI.
 
+## Host Config Loading
+
+The CLI loads `privenv.host.json` from the current working directory when present. If it is missing, the CLI falls back to a fixture Host config for tests and demos. The Guest does not read Host config directly.
+
 ## Flow
 
 ```text
@@ -59,6 +63,14 @@ The skeleton explicitly denies examples such as:
 - `wget`
 - `ssh`
 - `git push`
+
+## Capability-Bound Execution Policy
+
+Every Host capability defines its allowed command, fixed args, allowed environment variable names, timeout, and redaction policy. EffectRequest JSON references only capabilityId for execution selection.
+
+The runtime resolves the Host capability definition and validates the definition against the static allowlist by exact program and args array match. It rejects Guest-provided command, args, shell, env, or timeout fields in request params.
+
+The skeleton keeps execution simulated only. It does not use shell=true, concatenate command strings for execution, run arbitrary commands, or expose process.env to the Guest.
 
 ## Fixture Policy
 

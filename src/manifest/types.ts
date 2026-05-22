@@ -13,8 +13,8 @@ export interface ManifestCapability {
   id: string;
   kind: "command";
   description: string;
-  env?: ManifestEnvReference[];
   command: ManifestCommand;
+  env: ManifestEnvReference[];
 }
 
 export interface HostManifest {

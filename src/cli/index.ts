@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
-import { handleEffectRequest } from "../runtime/index.js";
+import { loadHostConfigFromCwd } from "../config/index.js";
 import { parseEffectRequest, ProtocolParseError } from "../protocol/index.js";
+import { handleEffectRequest } from "../runtime/index.js";
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -25,8 +26,9 @@ async function main(): Promise<void> {
   const input = await readStdin();
 
   try {
+    const hostConfig = await loadHostConfigFromCwd();
     const request = parseEffectRequest(input);
-    const { response } = handleEffectRequest({ request });
+    const { response } = handleEffectRequest({ request, hostConfig });
     process.stdout.write(`${JSON.stringify(response)}\n`);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error.";

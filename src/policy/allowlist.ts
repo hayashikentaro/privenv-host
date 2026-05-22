@@ -1,34 +1,67 @@
-import type { ManifestCommand } from "../manifest/types.js";
+import type { HostConfigCapability, HostConfigCommand } from "../config/index.js";
 
 export interface CommandPolicyDecision {
   allowed: boolean;
   reason?: string;
 }
 
-const ALLOWED_COMMANDS = new Set(["npm test", "npm run lint", "npm run typecheck"]);
-const DENIED_PROGRAMS = new Set(["curl", "wget", "ssh"]);
-const DENIED_EXACT_COMMANDS = new Set(["git push", "rm -rf"]);
-
-export function commandToPolicyKey(command: ManifestCommand): string {
-  return [command.program, ...command.args].join(" ").trim();
+export interface AllowedCommandDefinition {
+  program: string;
+  args: string[];
 }
 
-export function validateCommandAllowlist(command: ManifestCommand): CommandPolicyDecision {
-  const key = commandToPolicyKey(command);
+const ALLOWED_COMMANDS: AllowedCommandDefinition[] = [
+  { program: "npm", args: ["test"] },
+  { program: "npm", args: ["run", "lint"] },
+  { program: "npm", args: ["run", "typecheck"] }
+];
 
+const DENIED_PROGRAMS = new Set(["curl", "wget", "ssh"]);
+const DENIED_COMMANDS: AllowedCommandDefinition[] = [
+  { program: "git", args: ["push"] },
+  { program: "rm", args: ["-rf"] }
+];
+
+export function validateCapabilityExecutionPolicy(capability: HostConfigCapability): CommandPolicyDecision {
+  if (!Number.isInteger(capability.timeoutMs) || capability.timeoutMs <= 0) {
+    return { allowed: false, reason: "Capability timeout must be a positive integer." };
+  }
+
+  if (!Array.isArray(capability.env)) {
+    return { allowed: false, reason: "Capability env must be an array." };
+  }
+
+  if (capability.redactionPolicy !== "default") {
+    return { allowed: false, reason: "Capability redactionPolicy must be default." };
+  }
+
+  return validateCommandAllowlist(capability.command);
+}
+
+export function validateCommandAllowlist(command: HostConfigCommand): CommandPolicyDecision {
   if (DENIED_PROGRAMS.has(command.program)) {
     return { allowed: false, reason: `Command program "${command.program}" is explicitly denied.` };
   }
 
-  for (const denied of DENIED_EXACT_COMMANDS) {
-    if (key === denied || key.startsWith(`${denied} `)) {
-      return { allowed: false, reason: `Command "${denied}" is explicitly denied.` };
-    }
+  if (DENIED_COMMANDS.some((denied) => commandStartsWith(command, denied))) {
+    return { allowed: false, reason: "Command is explicitly denied by Host policy." };
   }
 
-  if (!ALLOWED_COMMANDS.has(key)) {
-    return { allowed: false, reason: `Command "${key}" is not in the static allowlist.` };
+  if (!ALLOWED_COMMANDS.some((allowed) => commandEquals(command, allowed))) {
+    return { allowed: false, reason: "Command does not exactly match the Host allowlist." };
   }
 
   return { allowed: true };
+}
+
+export function commandEquals(command: HostConfigCommand, allowed: AllowedCommandDefinition): boolean {
+  return command.program === allowed.program && arrayEquals(command.args, allowed.args);
+}
+
+function commandStartsWith(command: HostConfigCommand, denied: AllowedCommandDefinition): boolean {
+  return command.program === denied.program && denied.args.every((arg, index) => command.args[index] === arg);
+}
+
+function arrayEquals(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }

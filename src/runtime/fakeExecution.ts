@@ -1,4 +1,4 @@
-import type { ManifestCapability } from "../manifest/types.js";
+import type { HostConfigCapability } from "../config/index.js";
 
 export interface FakeExecutionResult {
   exitCode: number;
@@ -6,7 +6,7 @@ export interface FakeExecutionResult {
   stderr: string;
 }
 
-export function fakeExecuteCapability(capability: ManifestCapability): FakeExecutionResult {
+export function fakeExecuteCapability(capability: HostConfigCapability): FakeExecutionResult {
   // TODO: Replace with approved Host-side execution in a future implementation.
   // This intentionally does not spawn a shell or read process.env.
   if (capability.id === "cmd.fixture.leaky") {

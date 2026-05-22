@@ -1,7 +1,9 @@
 import { createAuditId, createAuditRecord } from "../audit/index.js";
 import type { AuditRecord } from "../audit/index.js";
+import { FIXTURE_HOST_CONFIG } from "../config/index.js";
+import type { HostConfig } from "../config/index.js";
 import { findCapability } from "../manifest/index.js";
-import { validateCommandAllowlist } from "../policy/index.js";
+import { validateCapabilityExecutionPolicy } from "../policy/index.js";
 import type { EffectRequest, EffectResponse } from "../protocol/index.js";
 import { FIXTURE_SECRETS, redactStreams } from "../redact/index.js";
 import type { RedactionFixture } from "../redact/index.js";
@@ -14,10 +16,38 @@ export interface RuntimeResult {
 
 export function handleEffectRequest(input: {
   request: EffectRequest;
+  hostConfig?: HostConfig;
   fixtureSecrets?: RedactionFixture[];
 }): RuntimeResult {
   const auditId = createAuditId();
-  const capability = findCapability(input.request.capabilityId);
+  const hostConfig = input.hostConfig ?? FIXTURE_HOST_CONFIG;
+  const guestExecutionPolicy = validateGuestRequestDoesNotCarryExecution(input.request);
+
+  if (!guestExecutionPolicy.allowed) {
+    const audit = createAuditRecord({
+      auditId,
+      request: input.request,
+      decision: "denied",
+      status: "denied",
+      errorCode: "policy.guest_execution_fields_denied"
+    });
+
+    return {
+      audit,
+      response: {
+        requestId: input.request.id,
+        type: "effect.response",
+        ok: false,
+        error: {
+          code: "policy.guest_execution_fields_denied",
+          message: guestExecutionPolicy.reason ?? "EffectRequest must reference a capabilityId, not command execution details."
+        },
+        auditId
+      }
+    };
+  }
+
+  const capability = findCapability(hostConfig, input.request.capabilityId);
 
   if (!capability) {
     const audit = createAuditRecord({
@@ -36,14 +66,14 @@ export function handleEffectRequest(input: {
         ok: false,
         error: {
           code: "policy.unknown_capability",
-          message: "Capability is not declared in the Host manifest."
+          message: "Capability is not declared in the Host config."
         },
         auditId
       }
     };
   }
 
-  const policy = validateCommandAllowlist(capability.command);
+  const policy = validateCapabilityExecutionPolicy(capability);
   if (!policy.allowed) {
     const audit = createAuditRecord({
       auditId,
@@ -99,4 +129,28 @@ export function handleEffectRequest(input: {
       auditId
     }
   };
+}
+
+interface GuestRequestPolicyDecision {
+  allowed: boolean;
+  reason?: string;
+}
+
+function validateGuestRequestDoesNotCarryExecution(request: EffectRequest): GuestRequestPolicyDecision {
+  const params = request.params;
+  if (!params) {
+    return { allowed: true };
+  }
+
+  const deniedFields = ["command", "program", "args", "argv", "shell", "env", "timeout", "timeoutMs"];
+  const present = deniedFields.find((field) => Object.prototype.hasOwnProperty.call(params, field));
+
+  if (present) {
+    return {
+      allowed: false,
+      reason: `EffectRequest params must not include execution field "${present}". Use capabilityId only.`
+    };
+  }
+
+  return { allowed: true };
 }

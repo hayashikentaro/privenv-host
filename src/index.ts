@@ -1,3 +1,4 @@
+export * from "./config/index.js";
 export * from "./audit/index.js";
 export * from "./manifest/index.js";
 export * from "./policy/index.js";

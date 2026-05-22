@@ -65,3 +65,52 @@ test("redacts fixture secrets emitted by fake execution", () => {
   assert.equal(result.audit.capabilityId, "cmd.fixture.leaky");
   assert.doesNotMatch(JSON.stringify(result.audit), /fixture_secret_value_123|test_only_token_do_not_use/);
 });
+
+
+test("rejects Guest-provided arbitrary command fields", () => {
+  const result = handleEffectRequest({
+    request: {
+      id: "req_arbitrary_command",
+      type: "effect.request",
+      capabilityId: "cmd.npm.test",
+      params: {
+        command: "npm test -- --watch"
+      }
+    }
+  });
+
+  assert.equal(result.response.ok, false);
+  assert.equal(result.response.error?.code, "policy.guest_execution_fields_denied");
+  assert.equal(result.audit.decision, "denied");
+});
+
+
+test("resolves capability from supplied Host config", () => {
+  const result = handleEffectRequest({
+    hostConfig: {
+      version: "0.1",
+      capabilities: [
+        {
+          id: "cmd.custom.test",
+          kind: "command",
+          description: "Custom test capability.",
+          command: {
+            program: "npm",
+            args: ["test"]
+          },
+          env: [],
+          timeoutMs: 30000,
+          redactionPolicy: "default"
+        }
+      ]
+    },
+    request: {
+      id: "req_custom_config",
+      type: "effect.request",
+      capabilityId: "cmd.custom.test"
+    }
+  });
+
+  assert.equal(result.response.ok, true);
+  assert.equal(result.audit.capabilityId, "cmd.custom.test");
+});

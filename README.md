@@ -53,9 +53,14 @@ The Guest:
 - [Trust Model](docs/trust-model.md)
 - [Protocol](docs/protocol.md)
 - [Runtime Flow](docs/runtime-flow.md)
+- [Host Config Spec](docs/config-spec.md)
 - [MVP Scope](docs/mvp-scope.md)
 - [Test Strategy](docs/test-strategy.md)
 - [Security Principles](docs/security-principles.md)
+
+## Host Configuration
+
+`privenv.host.json` is a project-local Host-owned configuration file. It may name environment variables, but it must not contain raw environment values or secret values. Guests read generated safe manifests, not the Host config directly.
 
 ## Runtime Skeleton
 

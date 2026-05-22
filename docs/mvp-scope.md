@@ -6,6 +6,8 @@ The MVP is documentation-first and Host-side.
 
 ## In Scope
 
+- project-local Host config skeleton using `privenv.host.json`
+
 - secret vault concept
 - safe manifest generation
 - effect capability IDs
@@ -37,6 +39,8 @@ Phase 2 may add Unix domain socket transport.
 The protocol should remain transport-independent where practical, so the same request and response shapes can be reused.
 
 ## Manifest Requirements
+
+`privenv.host.json` is Host-owned configuration. Guests read generated safe manifests, not Host config directly.
 
 Manifests are safe for Guest consumption. They may include:
 
