@@ -1,0 +1,23 @@
+{
+  "name": "privenv-host",
+  "version": "0.1.0",
+  "description": "Host-side runtime skeleton for privenv.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "privenv-host": "./dist/src/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test \"dist/tests/**/*.test.js\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "npm run build --silent && node dist/src/cli/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -22,7 +22,7 @@ Core principle:
 - audit logging
 - Phase 1 stdio JSON request/response protocol
 
-Phase 1 uses stdio JSON request/response. Phase 2 may add a Unix domain socket transport. Neither transport is implemented yet; this repository currently documents the protocol and security model.
+Phase 1 uses stdio JSON request/response. Phase 2 may add a Unix domain socket transport. This repository currently contains documentation plus a minimal TypeScript Host-side runtime skeleton for Phase 1.
 
 ## Host Responsibilities
 
@@ -52,9 +52,24 @@ The Guest:
 - [Concept](docs/concept.md)
 - [Trust Model](docs/trust-model.md)
 - [Protocol](docs/protocol.md)
+- [Runtime Flow](docs/runtime-flow.md)
 - [MVP Scope](docs/mvp-scope.md)
 - [Test Strategy](docs/test-strategy.md)
 - [Security Principles](docs/security-principles.md)
+
+## Runtime Skeleton
+
+The initial TypeScript skeleton includes:
+
+- protocol types matching `docs/protocol.md`
+- safe manifest types
+- audit record types
+- fixture-only redaction utility
+- static command allowlist validation
+- fake execution placeholder
+- `privenv-host run` CLI entry for stdio JSON request/response
+
+The skeleton does not implement production secret management, unrestricted shell execution, external API gateway behavior, Unix domain sockets, or real credential handling.
 
 ## License
 
