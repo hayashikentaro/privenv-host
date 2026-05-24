@@ -2,6 +2,10 @@
 
 Guidance for future Codex agents working in `privenv-host`.
 
+Before making changes, future Codex agents must read this file and `docs/codex-operating-contract.md`.
+
+Future task prompts may be short because the fixed repository rules live in these documents. If a short prompt conflicts with these rules, follow the repository rules unless the user explicitly changes them for the current task.
+
 ## Repository Boundary
 
 - Work only in this repository: `privenv-host`.
