@@ -56,11 +56,22 @@ The Guest:
 - [Execution Context](docs/execution-context.md)
 - [Execution Modes](docs/execution-modes.md)
 - [Host Config Spec](docs/config-spec.md)
+- [Project Init](docs/init.md)
 - [Vault Spec](docs/vault-spec.md)
 - [Validation](docs/validation.md)
 - [MVP Scope](docs/mvp-scope.md)
 - [Test Strategy](docs/test-strategy.md)
 - [Security Principles](docs/security-principles.md)
+
+## Project Init
+
+Create starter Host files safely:
+
+```sh
+privenv-host init
+```
+
+`init` creates `privenv.host.json`, creates root-level `privenv.vault.example.json`, and updates `.gitignore`. It does not create `.privenv/vault.json`, read `.env`, import real secrets, or overwrite existing starter files unless `--force` is passed. Users create `.privenv/vault.json` manually from the example when local Host secrets are needed.
 
 ## Host Configuration
 

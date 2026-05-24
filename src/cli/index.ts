@@ -2,6 +2,7 @@
 
 import { appendAuditRecord } from "../audit/index.js";
 import { loadHostConfigFromCwd } from "../config/index.js";
+import { initProject } from "../init/index.js";
 import { createSafeManifest } from "../manifest/index.js";
 import { parseEffectRequest, ProtocolParseError } from "../protocol/index.js";
 import { handleEffectRequest, isExecutionMode, loadHostRuntimeInputs } from "../runtime/index.js";
@@ -44,6 +45,10 @@ export async function runCli(input: { args: string[]; stdin?: string; cwd: strin
     };
   }
 
+  if (parsed.command === "init") {
+    return emitInit(input.cwd, parsed.force);
+  }
+
   if (parsed.command === "manifest") {
     return emitManifest(input.cwd);
   }
@@ -84,20 +89,34 @@ export async function runCli(input: { args: string[]; stdin?: string; cwd: strin
 }
 
 function parseArgs(args: string[]):
-  | { ok: true; command: "run" | "demo-run" | "manifest" | "validate" | "doctor"; executionMode: ExecutionMode }
+  | { ok: true; command: "run" | "demo-run" | "manifest" | "validate" | "doctor" | "init"; executionMode: ExecutionMode; force: boolean }
   | { ok: false; message: string } {
   const [command, ...flags] = args;
-  if (command !== "run" && command !== "demo-run" && command !== "manifest" && command !== "validate" && command !== "doctor") {
-    return { ok: false, message: "Usage: privenv-host run [--simulate] | privenv-host demo-run [--simulate] | privenv-host manifest | privenv-host validate | privenv-host doctor" };
+  if (command !== "run" && command !== "demo-run" && command !== "manifest" && command !== "validate" && command !== "doctor" && command !== "init") {
+    return { ok: false, message: usageMessage() };
   }
 
   let executionMode: ExecutionMode = "simulate";
+  let force = false;
   for (const flag of flags) {
+    if (flag === "--force") {
+      if (command !== "init") {
+        return { ok: false, message: `Unknown flag: ${flag}` };
+      }
+      force = true;
+      continue;
+    }
     if (flag === "--simulate") {
+      if (command !== "run" && command !== "demo-run") {
+        return { ok: false, message: `Unknown flag: ${flag}` };
+      }
       executionMode = "simulate";
       continue;
     }
     if (flag === "--execute") {
+      if (command !== "run" && command !== "demo-run") {
+        return { ok: false, message: `Unknown flag: ${flag}` };
+      }
       executionMode = "execute";
       continue;
     }
@@ -108,7 +127,11 @@ function parseArgs(args: string[]):
     return { ok: false, message: "Invalid execution mode." };
   }
 
-  return { ok: true, command, executionMode };
+  return { ok: true, command, executionMode, force };
+}
+
+function usageMessage(): string {
+  return "Usage: privenv-host init [--force] | privenv-host run [--simulate] | privenv-host demo-run [--simulate] | privenv-host manifest | privenv-host validate | privenv-host doctor";
 }
 
 async function appendAuditSafely(audit: Parameters<typeof appendAuditRecord>[0], cwd: string): Promise<string> {
@@ -118,6 +141,15 @@ async function appendAuditSafely(audit: Parameters<typeof appendAuditRecord>[0],
   } catch {
     return "Warning: failed to write Host audit log.\n";
   }
+}
+
+async function emitInit(cwd: string, force: boolean): Promise<CliResult> {
+  const result = await initProject({ cwd, force });
+  return {
+    stdout: `${JSON.stringify(result)}\n`,
+    stderr: "",
+    exitCode: 0
+  };
 }
 
 async function emitValidation(cwd: string): Promise<CliResult> {

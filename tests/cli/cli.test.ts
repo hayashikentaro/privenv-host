@@ -21,6 +21,14 @@ async function invokeManifest(options?: { cwd?: string }) {
   });
 }
 
+async function invokeInit(options?: { cwd?: string; flags?: string[] }) {
+  return runCli({
+    args: ["init", ...(options?.flags ?? [])],
+    cwd: options?.cwd ?? process.cwd(),
+    stdin: ""
+  });
+}
+
 async function invokeValidate(options?: { cwd?: string }) {
   return runCli({
     args: ["validate"],
@@ -528,4 +536,105 @@ test("command policy violations are reported", async () => {
   assert.equal(result.ok, false);
   assert.equal(result.capabilities[0].valid, false);
   assert.match(child.stdout, /not in allowlist|denied/i);
+});
+
+test("init creates starter Host config", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-init-config-"));
+
+  const child = await invokeInit({ cwd });
+
+  assert.equal(child.exitCode, 0);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.ok, true);
+  assert.equal(result.type, "init.result");
+  const config = JSON.parse(readFileSync(join(cwd, "privenv.host.json"), "utf8"));
+  assert.equal(config.version, "0.1");
+  assert.deepEqual(
+    config.capabilities.map((capability: { id: string }) => capability.id),
+    ["cmd.npm.test", "cmd.npm.lint", "cmd.npm.typecheck"]
+  );
+  assert.equal(config.capabilities.every((capability: { env: unknown[] }) => capability.env.length === 0), true);
+});
+
+test("init creates root vault example and not real vault", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-init-vault-example-"));
+
+  await invokeInit({ cwd });
+
+  const vaultExample = JSON.parse(readFileSync(join(cwd, "privenv.vault.example.json"), "utf8"));
+  assert.equal(vaultExample.version, "0.1");
+  assert.equal(vaultExample.secrets.EXAMPLE_DATABASE_URL.classification, "secret");
+  assert.equal(vaultExample.secrets.EXAMPLE_USER_EMAIL.classification, "pii");
+  assert.equal(vaultExample.secrets.EXAMPLE_SERVICE_TOKEN.classification, "token");
+  assert.equal(existsSync(join(cwd, ".privenv", "vault.json")), false);
+});
+
+test("init updates gitignore with required patterns", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-init-gitignore-"));
+  writeFileSync(join(cwd, ".gitignore"), "dist/\n", "utf8");
+
+  await invokeInit({ cwd });
+
+  const gitignore = readFileSync(join(cwd, ".gitignore"), "utf8");
+  for (const pattern of [".env", ".env.*", "!.env.example", ".privenv/", "privenv.manifest.json", "audit.log.jsonl"]) {
+    assert.match(gitignore, new RegExp(`^${pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "m"));
+  }
+  assert.match(gitignore, /^dist\/$/m);
+});
+
+test("init does not overwrite existing files without force", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-init-no-overwrite-"));
+  writeFileSync(join(cwd, "privenv.host.json"), "{\"existing\":true}\n", "utf8");
+  writeFileSync(join(cwd, "privenv.vault.example.json"), "{\"existing\":true}\n", "utf8");
+
+  const child = await invokeInit({ cwd });
+
+  assert.equal(child.exitCode, 0);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.files.hostConfig.skipped, true);
+  assert.equal(result.files.vaultExample.skipped, true);
+  assert.equal(readFileSync(join(cwd, "privenv.host.json"), "utf8"), "{\"existing\":true}\n");
+  assert.equal(readFileSync(join(cwd, "privenv.vault.example.json"), "utf8"), "{\"existing\":true}\n");
+});
+
+test("init force overwrites generated starter files", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-init-force-"));
+  writeFileSync(join(cwd, "privenv.host.json"), "{\"existing\":true}\n", "utf8");
+  writeFileSync(join(cwd, "privenv.vault.example.json"), "{\"existing\":true}\n", "utf8");
+
+  const child = await invokeInit({ cwd, flags: ["--force"] });
+
+  assert.equal(child.exitCode, 0);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.files.hostConfig.overwritten, true);
+  assert.equal(result.files.vaultExample.overwritten, true);
+  const config = JSON.parse(readFileSync(join(cwd, "privenv.host.json"), "utf8"));
+  assert.equal(config.version, "0.1");
+  assert.equal(config.capabilities.length, 3);
+});
+
+test("generated init files contain no realistic credentials", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-init-safe-values-"));
+
+  await invokeInit({ cwd });
+
+  const generated = `${readFileSync(join(cwd, "privenv.host.json"), "utf8")}\n${readFileSync(join(cwd, "privenv.vault.example.json"), "utf8")}`;
+  assert.doesNotMatch(generated, /fixture_secret_value_123|test_only_token_do_not_use|fixture-db-url/);
+  assert.doesNotMatch(generated, /sk-[A-Za-z0-9_-]{8,}|AKIA[A-Z0-9]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|postgres:\/\/|Bearer\s+[A-Za-z0-9._-]+/i);
+});
+
+test("validate works after init", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-init-validate-"));
+
+  await invokeInit({ cwd });
+  const child = await invokeValidate({ cwd });
+
+  assert.equal(child.exitCode, 0);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.ok, true);
+  assert.equal(result.config.exists, true);
+  assert.equal(result.config.valid, true);
+  assert.equal(result.vault.exists, false);
+  assert.equal(result.capabilities.length, 3);
+  assert.equal(result.capabilities.every((capability: { valid: boolean; missingEnvNames: string[] }) => capability.valid && capability.missingEnvNames.length === 0), true);
 });

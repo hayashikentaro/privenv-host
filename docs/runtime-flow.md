@@ -32,6 +32,10 @@ echo EFFECT_REQUEST_JSON | npm run dev -- demo-run
 
 npm run dev builds the TypeScript skeleton and runs the Phase 1 stdio CLI.
 
+## Project Init
+
+`privenv-host init` creates starter Host setup files without reading `.env` or importing secrets. It writes `privenv.host.json`, root-level `privenv.vault.example.json`, and required `.gitignore` patterns. It does not create `.privenv/vault.json`; users create that Host-owned gitignored file manually when needed.
+
 ## Validation
 
 `privenv-host validate` checks `privenv.host.json`, optional `.privenv/vault.json`, unique capability IDs, static command policy, env exposure flags, secret-like config values, and missing vault entries by env name only. It writes machine-readable JSON and does not write audit logs.

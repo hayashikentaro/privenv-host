@@ -103,6 +103,10 @@ Example audit entry:
 
 The audit entry records `capabilityId`, not secret values.
 
+## Init Tests
+
+Init tests should verify starter Host config creation, root-level vault example creation, required `.gitignore` patterns, no `.privenv/vault.json` creation, no overwrite without `--force`, starter overwrite with `--force`, absence of realistic credentials, and successful validation after init.
+
 ## Validation Tests
 
 Validation tests should verify valid Host config and vault setup, missing Host config, missing vault entries by env name only, invalid config rejection, invalid vault rejection, duplicate capability IDs, static command policy violations, and that `validate` and `doctor` outputs never contain fixture secret values.

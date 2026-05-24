@@ -103,6 +103,10 @@ Audit logs must not record:
 
 `.privenv/vault.json` is Host-owned plaintext development storage in the MVP. Guests must never read it. Vault values must never appear in manifests, responses, or audit logs. Real projects must gitignore `.privenv/`. Encryption and external vault integrations are future work.
 
+## Project Init
+
+`privenv-host init` is safe bootstrap only. It does not read `.env`, import secrets, create a real vault, execute commands, or expose secret APIs. The generated `privenv.vault.example.json` contains fake placeholders only; real local values belong in Host-owned `.privenv/vault.json`, which is gitignored.
+
 ## Validation and Doctor
 
 `privenv-host validate` and `privenv-host doctor` inspect Host-owned setup without exposing secret values. `validate` is machine-readable JSON for tooling, and `doctor` is human-readable for local diagnostics. Both commands report missing vault entries by env name only and are safe to run before handing a generated manifest to a Guest.
