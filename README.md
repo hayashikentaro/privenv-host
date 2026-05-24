@@ -144,6 +144,18 @@ privenv-host manifest > privenv.manifest.json
 
 `.privenv/vault.json` is a Host-owned plaintext local vault for development. Guests must never read it. The MVP loader uses it only to materialize env values inside Host-internal execution context resolution. Encryption and external vault integrations are future work.
 
+## Development Checks
+
+Run the same checks locally that CI runs on every push and pull request:
+
+```sh
+npm run typecheck
+npm test
+npm run pack:check
+```
+
+CI uses Node.js 20 and does not publish packages, deploy, or require repository secrets.
+
 ## Package Hygiene
 
 This package is not production-ready. Real command execution is not implemented, and npm publication is future work.
