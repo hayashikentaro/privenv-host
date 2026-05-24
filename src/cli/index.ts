@@ -5,6 +5,7 @@ import { loadHostConfigFromCwd } from "../config/index.js";
 import { createSafeManifest } from "../manifest/index.js";
 import { parseEffectRequest, ProtocolParseError } from "../protocol/index.js";
 import { handleEffectRequest, isExecutionMode, loadHostRuntimeInputs } from "../runtime/index.js";
+import { formatDoctor, validateHostSetup } from "../validation/index.js";
 import type { ExecutionMode } from "../runtime/index.js";
 
 export interface CliResult {
@@ -47,6 +48,14 @@ export async function runCli(input: { args: string[]; stdin?: string; cwd: strin
     return emitManifest(input.cwd);
   }
 
+  if (parsed.command === "validate") {
+    return emitValidation(input.cwd);
+  }
+
+  if (parsed.command === "doctor") {
+    return emitDoctor(input.cwd);
+  }
+
   try {
     const runtimeInputs = await loadHostRuntimeInputs({ cwd: input.cwd, allowFixtureFallback: parsed.command === "demo-run" });
     const request = parseEffectRequest(input.stdin ?? "");
@@ -75,11 +84,11 @@ export async function runCli(input: { args: string[]; stdin?: string; cwd: strin
 }
 
 function parseArgs(args: string[]):
-  | { ok: true; command: "run" | "demo-run" | "manifest"; executionMode: ExecutionMode }
+  | { ok: true; command: "run" | "demo-run" | "manifest" | "validate" | "doctor"; executionMode: ExecutionMode }
   | { ok: false; message: string } {
   const [command, ...flags] = args;
-  if (command !== "run" && command !== "demo-run" && command !== "manifest") {
-    return { ok: false, message: "Usage: privenv-host run [--simulate] | privenv-host demo-run [--simulate] | privenv-host manifest" };
+  if (command !== "run" && command !== "demo-run" && command !== "manifest" && command !== "validate" && command !== "doctor") {
+    return { ok: false, message: "Usage: privenv-host run [--simulate] | privenv-host demo-run [--simulate] | privenv-host manifest | privenv-host validate | privenv-host doctor" };
   }
 
   let executionMode: ExecutionMode = "simulate";
@@ -109,6 +118,24 @@ async function appendAuditSafely(audit: Parameters<typeof appendAuditRecord>[0],
   } catch {
     return "Warning: failed to write Host audit log.\n";
   }
+}
+
+async function emitValidation(cwd: string): Promise<CliResult> {
+  const result = await validateHostSetup(cwd);
+  return {
+    stdout: `${JSON.stringify(result)}\n`,
+    stderr: "",
+    exitCode: result.ok ? 0 : 1
+  };
+}
+
+async function emitDoctor(cwd: string): Promise<CliResult> {
+  const result = await validateHostSetup(cwd);
+  return {
+    stdout: formatDoctor(result),
+    stderr: "",
+    exitCode: result.ok ? 0 : 1
+  };
 }
 
 async function emitManifest(cwd: string): Promise<CliResult> {

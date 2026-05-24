@@ -21,6 +21,22 @@ async function invokeManifest(options?: { cwd?: string }) {
   });
 }
 
+async function invokeValidate(options?: { cwd?: string }) {
+  return runCli({
+    args: ["validate"],
+    cwd: options?.cwd ?? process.cwd(),
+    stdin: ""
+  });
+}
+
+async function invokeDoctor(options?: { cwd?: string }) {
+  return runCli({
+    args: ["doctor"],
+    cwd: options?.cwd ?? process.cwd(),
+    stdin: ""
+  });
+}
+
 function readAuditLog(cwd: string): Array<Record<string, unknown>> {
   const path = join(cwd, ".privenv", "audit.log.jsonl");
   return readFileSync(path, "utf8")
@@ -317,4 +333,199 @@ test("manifest command does not create audit log", async () => {
 
   assert.equal(child.exitCode, 0);
   assert.equal(existsSync(join(cwd, ".privenv", "audit.log.jsonl")), false);
+});
+
+test("validate succeeds with valid config and vault", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-validate-valid-"));
+  writeHostConfigWithRequiredEnv(cwd);
+  mkdirSync(join(cwd, ".privenv"));
+  writeFileSync(
+    join(cwd, ".privenv", "vault.json"),
+    JSON.stringify({ version: "0.1", secrets: { DATABASE_URL: { value: "fixture-db-url", classification: "secret" } } }),
+    "utf8"
+  );
+
+  const child = await invokeValidate({ cwd });
+
+  assert.equal(child.exitCode, 0);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.ok, true);
+  assert.equal(result.type, "validation.result");
+  assert.deepEqual(result.config, { exists: true, valid: true });
+  assert.deepEqual(result.vault, { exists: true, valid: true });
+  assert.equal(result.capabilities[0].id, "cmd.needs.db");
+  assert.equal(result.capabilities[0].valid, true);
+  assert.deepEqual(result.capabilities[0].envNames, ["DATABASE_URL"]);
+  assert.deepEqual(result.capabilities[0].missingEnvNames, []);
+  assert.doesNotMatch(child.stdout, /fixture-db-url|fixture_secret_value_123|test_only_token_do_not_use/);
+});
+
+test("validate reports missing config", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-validate-missing-config-"));
+
+  const child = await invokeValidate({ cwd });
+
+  assert.equal(child.exitCode, 1);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.ok, false);
+  assert.equal(result.config.exists, false);
+  assert.equal(result.config.valid, false);
+  assert.match(result.config.error, /Missing privenv\.host\.json/);
+});
+
+test("validate reports missing vault entries by env name only", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-validate-missing-env-"));
+  writeHostConfigWithRequiredEnv(cwd);
+  mkdirSync(join(cwd, ".privenv"));
+  writeFileSync(
+    join(cwd, ".privenv", "vault.json"),
+    JSON.stringify({ version: "0.1", secrets: {} }),
+    "utf8"
+  );
+
+  const child = await invokeValidate({ cwd });
+
+  assert.equal(child.exitCode, 1);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.capabilities[0].envNames, ["DATABASE_URL"]);
+  assert.deepEqual(result.capabilities[0].missingEnvNames, ["DATABASE_URL"]);
+  assert.match(child.stdout, /DATABASE_URL/);
+  assert.doesNotMatch(child.stdout, /fixture-db-url|fixture_secret_value_123|test_only_token_do_not_use/);
+});
+
+test("validate rejects invalid config", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-validate-invalid-config-"));
+  writeFileSync(
+    join(cwd, "privenv.host.json"),
+    JSON.stringify({
+      version: "0.1",
+      capabilities: [
+        {
+          id: "cmd.bad",
+          kind: "command",
+          description: "Bad config",
+          command: { program: "npm", args: ["test"] },
+          env: [{ name: "DATABASE_URL", source: "secret", exposedToGuest: true }],
+          timeoutMs: 30000,
+          redactionPolicy: "default"
+        }
+      ]
+    }),
+    "utf8"
+  );
+
+  const child = await invokeValidate({ cwd });
+
+  assert.equal(child.exitCode, 1);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.ok, false);
+  assert.equal(result.config.valid, false);
+  assert.match(result.config.error, /exposedToGuest/);
+});
+
+test("validate rejects invalid vault", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-validate-invalid-vault-"));
+  writeHostConfigWithRequiredEnv(cwd);
+  mkdirSync(join(cwd, ".privenv"));
+  writeFileSync(join(cwd, ".privenv", "vault.json"), JSON.stringify({ version: "9.9", secrets: {} }), "utf8");
+
+  const child = await invokeValidate({ cwd });
+
+  assert.equal(child.exitCode, 1);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.ok, false);
+  assert.equal(result.vault.exists, true);
+  assert.equal(result.vault.valid, false);
+  assert.match(result.vault.error, /version/);
+});
+
+test("doctor output never contains fixture secret values", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-doctor-safe-"));
+  writeHostConfigWithRequiredEnv(cwd);
+  mkdirSync(join(cwd, ".privenv"));
+  writeFileSync(
+    join(cwd, ".privenv", "vault.json"),
+    JSON.stringify({ version: "0.1", secrets: { DATABASE_URL: { value: "fixture-db-url", classification: "secret" } } }),
+    "utf8"
+  );
+
+  const child = await invokeDoctor({ cwd });
+
+  assert.equal(child.exitCode, 0);
+  assert.match(child.stdout, /Host config: OK/);
+  assert.match(child.stdout, /Vault: OK/);
+  assert.match(child.stdout, /Real execution: not implemented/);
+  assert.match(child.stdout, /Mode: simulate only/);
+  assert.doesNotMatch(child.stdout, /fixture-db-url|fixture_secret_value_123|test_only_token_do_not_use/);
+});
+
+test("duplicate capability IDs are reported", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-validate-duplicate-"));
+  writeFileSync(
+    join(cwd, "privenv.host.json"),
+    JSON.stringify({
+      version: "0.1",
+      capabilities: [
+        {
+          id: "cmd.duplicate",
+          kind: "command",
+          description: "First duplicate",
+          command: { program: "npm", args: ["test"] },
+          env: [],
+          timeoutMs: 30000,
+          redactionPolicy: "default"
+        },
+        {
+          id: "cmd.duplicate",
+          kind: "command",
+          description: "Second duplicate",
+          command: { program: "npm", args: ["test"] },
+          env: [],
+          timeoutMs: 30000,
+          redactionPolicy: "default"
+        }
+      ]
+    }),
+    "utf8"
+  );
+
+  const child = await invokeValidate({ cwd });
+
+  assert.equal(child.exitCode, 1);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.ok, false);
+  assert.equal(result.capabilities.length, 2);
+  assert.equal(result.capabilities.every((capability: { valid: boolean }) => capability.valid === false), true);
+  assert.match(child.stdout, /Duplicate capability id/);
+});
+
+test("command policy violations are reported", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-validate-policy-"));
+  writeFileSync(
+    join(cwd, "privenv.host.json"),
+    JSON.stringify({
+      version: "0.1",
+      capabilities: [
+        {
+          id: "cmd.bad.policy",
+          kind: "command",
+          description: "Blocked command",
+          command: { program: "curl", args: ["https://example.invalid"] },
+          env: [],
+          timeoutMs: 30000,
+          redactionPolicy: "default"
+        }
+      ]
+    }),
+    "utf8"
+  );
+
+  const child = await invokeValidate({ cwd });
+
+  assert.equal(child.exitCode, 1);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.ok, false);
+  assert.equal(result.capabilities[0].valid, false);
+  assert.match(child.stdout, /not in allowlist|denied/i);
 });

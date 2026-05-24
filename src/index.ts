@@ -5,3 +5,4 @@ export * from "./policy/index.js";
 export * from "./protocol/index.js";
 export * from "./redact/index.js";
 export * from "./runtime/index.js";
+export * from "./validation/index.js";

@@ -57,6 +57,7 @@ The Guest:
 - [Execution Modes](docs/execution-modes.md)
 - [Host Config Spec](docs/config-spec.md)
 - [Vault Spec](docs/vault-spec.md)
+- [Validation](docs/validation.md)
 - [MVP Scope](docs/mvp-scope.md)
 - [Test Strategy](docs/test-strategy.md)
 - [Security Principles](docs/security-principles.md)
@@ -68,6 +69,17 @@ The Guest:
 ## Audit Logs
 
 `privenv-host run` and `privenv-host demo-run` append safe audit records to `.privenv/audit.log.jsonl`. The audit log is Host-owned JSONL. Guests must never read it directly. Records describe capability usage, request IDs, decisions, statuses, env names, redaction summaries, errors, and timestamps, but never raw secret or vault values. `.privenv/audit.log.jsonl` is gitignored.
+
+## Validation
+
+Host setup can be checked before generating a manifest or handling Guest requests:
+
+```sh
+privenv-host validate
+privenv-host doctor
+```
+
+`validate` emits machine-readable JSON. `doctor` emits a human-readable summary. Both commands inspect Host-owned setup without printing secret values, vault values, or fixture secret values.
 
 ## Safe Manifest
 

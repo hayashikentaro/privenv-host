@@ -103,6 +103,10 @@ Example audit entry:
 
 The audit entry records `capabilityId`, not secret values.
 
+## Validation Tests
+
+Validation tests should verify valid Host config and vault setup, missing Host config, missing vault entries by env name only, invalid config rejection, invalid vault rejection, duplicate capability IDs, static command policy violations, and that `validate` and `doctor` outputs never contain fixture secret values.
+
 ## Vault Tests
 
 Vault tests use fixture values only. They must verify valid vault loading, invalid vault rejection, missing vault safety for required env references, and that responses and audit logs never contain raw vault values.

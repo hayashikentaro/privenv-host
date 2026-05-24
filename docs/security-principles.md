@@ -103,6 +103,10 @@ Audit logs must not record:
 
 `.privenv/vault.json` is Host-owned plaintext development storage in the MVP. Guests must never read it. Vault values must never appear in manifests, responses, or audit logs. Real projects must gitignore `.privenv/`. Encryption and external vault integrations are future work.
 
+## Validation and Doctor
+
+`privenv-host validate` and `privenv-host doctor` inspect Host-owned setup without exposing secret values. `validate` is machine-readable JSON for tooling, and `doctor` is human-readable for local diagnostics. Both commands report missing vault entries by env name only and are safe to run before handing a generated manifest to a Guest.
+
 ## Fixture Mode
 
 `privenv-host run` must not use fixture config or fixture vault fallback implicitly. `privenv-host demo-run` is the only mode allowed to use fixture fallback, and it is unsafe/demo-only.

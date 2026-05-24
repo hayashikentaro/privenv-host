@@ -32,6 +32,14 @@ echo EFFECT_REQUEST_JSON | npm run dev -- demo-run
 
 npm run dev builds the TypeScript skeleton and runs the Phase 1 stdio CLI.
 
+## Validation
+
+`privenv-host validate` checks `privenv.host.json`, optional `.privenv/vault.json`, unique capability IDs, static command policy, env exposure flags, secret-like config values, and missing vault entries by env name only. It writes machine-readable JSON and does not write audit logs.
+
+`privenv-host doctor` runs the same Host-side checks and writes a human-readable summary. It reports that real execution is not implemented and the runtime remains simulate-only.
+
+Both commands are safe to run before handing a generated manifest to a Guest because they never print secret values.
+
 ## Manifest Generation
 
 `privenv-host manifest` loads `privenv.host.json`, derives a safe manifest, and writes JSON to stdout. It does not load or require `.privenv/vault.json`.
