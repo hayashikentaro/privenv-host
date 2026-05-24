@@ -11,6 +11,42 @@ Core principle:
 
 > Guests never read secrets directly. Guests request effects executed by the Host.
 
+## Quick Start
+
+1. Initialize safe starter files:
+
+   ```sh
+   privenv-host init
+   ```
+
+2. Review `privenv.host.json`.
+
+3. Create `.privenv/vault.json` manually only if local Host secrets are needed. Do not import `.env` automatically.
+
+4. Validate machine-readable setup status:
+
+   ```sh
+   privenv-host validate
+   ```
+
+5. Check human-readable setup status:
+
+   ```sh
+   privenv-host doctor
+   ```
+
+6. Generate the Guest-readable safe manifest:
+
+   ```sh
+   privenv-host manifest > privenv.manifest.json
+   ```
+
+7. Send an EffectRequest to protected normal mode:
+
+   ```sh
+   echo '{"id":"req_001","type":"effect.request","capabilityId":"cmd.npm.test"}' | privenv-host run
+   ```
+
 ## Initial Scope
 
 `privenv-host` focuses on:
@@ -51,6 +87,8 @@ The Guest:
 
 - [Concept](docs/concept.md)
 - [Trust Model](docs/trust-model.md)
+- [Guest Boundary](docs/guest-boundary.md)
+- [Examples](docs/examples.md)
 - [Protocol](docs/protocol.md)
 - [Runtime Flow](docs/runtime-flow.md)
 - [Execution Context](docs/execution-context.md)
