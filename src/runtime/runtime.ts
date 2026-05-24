@@ -1,5 +1,6 @@
 import { createAuditId, createAuditRecord } from "../audit/index.js";
 import type { AuditRecord } from "../audit/index.js";
+import { ProtocolValidationError, validateRequestParams } from "@privenv/protocol";
 import { FIXTURE_HOST_CONFIG } from "../config/index.js";
 import type { HostConfig } from "../config/index.js";
 import { ExecutionContextResolutionError, resolveExecutionContext } from "../execution/index.js";
@@ -191,20 +192,20 @@ interface GuestRequestPolicyDecision {
 }
 
 function validateGuestRequestDoesNotCarryExecution(request: EffectRequest): GuestRequestPolicyDecision {
-  const params = request.params;
-  if (!params) {
+  try {
+    validateRequestParams(request.params);
     return { allowed: true };
-  }
-
-  const deniedFields = ["command", "program", "args", "argv", "shell", "env", "timeout", "timeoutMs"];
-  const present = deniedFields.find((field) => Object.prototype.hasOwnProperty.call(params, field));
-
-  if (present) {
+  } catch (error) {
+    if (error instanceof ProtocolValidationError) {
+      const present = error.path.split(".").at(-1) ?? "unknown";
+      return {
+        allowed: false,
+        reason: `EffectRequest params must not include execution field "${present}". Use capabilityId only.`
+      };
+    }
     return {
       allowed: false,
-      reason: `EffectRequest params must not include execution field "${present}". Use capabilityId only.`
+      reason: "EffectRequest params failed protocol validation."
     };
   }
-
-  return { allowed: true };
 }

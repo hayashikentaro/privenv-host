@@ -1,23 +1,16 @@
-export interface ManifestEnvReference {
-  name: string;
-  source: "secret";
-  exposedToGuest: false;
-}
+import type { GuestManifest, ManifestCapability as SharedManifestCapability, ManifestEnvReference } from "@privenv/protocol";
 
 export interface ManifestCommand {
   program: string;
   args: string[];
 }
 
-export interface ManifestCapability {
-  id: string;
-  kind: "command";
-  description: string;
+export type ManifestCapability = SharedManifestCapability & {
   command: ManifestCommand;
-  env: ManifestEnvReference[];
-}
+};
 
-export interface HostManifest {
-  version: string;
+export type HostManifest = GuestManifest & {
   capabilities: ManifestCapability[];
-}
+};
+
+export type { ManifestEnvReference };

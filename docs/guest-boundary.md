@@ -23,6 +23,8 @@ The Guest may send `EffectRequest` JSON to the Host.
 
 An `EffectRequest` selects a capability by `capabilityId`. It must not request raw secrets, arbitrary command strings, arbitrary env values, or unrestricted execution.
 
+`privenv-host` validates shared protocol shape with `@privenv/protocol`. Host-specific policy, vault, audit, redaction, execution context, runtime, and CLI behavior remain local to this repository.
+
 ## Guest Must Never Read
 
 The Guest must never read:

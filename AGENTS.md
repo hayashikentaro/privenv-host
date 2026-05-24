@@ -8,9 +8,11 @@ Guidance for future Codex agents working in `privenv-host`.
 - Do not inspect sibling repositories.
 - Do not infer requirements from sibling repositories or unrelated existing projects.
 - Do not inspect `privenv-guest`.
+- Do not inspect `privenv-protocol`.
 - If you are not in `privenv-host`, stop and report it.
 - If you need information from `privenv-guest`, stop and report that need instead of inspecting it.
 - Do not inspect `privenv-guest` to compare protocol compatibility. Request an explicit copied spec or shared protocol package instead.
+- Do not inspect `privenv-protocol` to compare protocol compatibility. Use the published `@privenv/protocol` package and explicit release notes or copied specs.
 
 ## Current Stage
 
@@ -18,6 +20,8 @@ Guidance for future Codex agents working in `privenv-host`.
 - Real command execution is not implemented.
 - `simulate` is the only implemented execution mode.
 - Protected `run`, explicit `demo-run`, `manifest`, `validate`, `doctor`, and `init` are the expected CLI surface.
+- Shared protocol types and validators come from `@privenv/protocol`.
+- Host-specific config, vault, audit, redaction, execution context, policy, runtime, and CLI behavior remain local.
 
 ## Scope Discipline
 

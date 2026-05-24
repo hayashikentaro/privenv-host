@@ -1,4 +1,4 @@
-import type { EffectRequest, RedactionSummary } from "../protocol/types.js";
+import type { EffectRequest, RedactionSummary } from "@privenv/protocol";
 import type { AuditRecord } from "./types.js";
 
 let auditCounter = 0;

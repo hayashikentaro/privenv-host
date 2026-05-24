@@ -8,11 +8,15 @@
     "privenv-host": "./dist/src/cli/index.js"
   },
   "scripts": {
+    "prebuild": "node scripts/clean-dist.cjs",
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node --test dist/tests",
+    "test": "npm run build && node --test \"dist/tests/**/*.test.js\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "npm run build --silent && node dist/src/cli/index.js",
-    "pack:check": "npm run build && npm test && npm pack --silent | node dist/scripts/check-package-files.js"
+    "pack:check": "npm run build && npm test && npm pack --json --cache .npm-cache | node dist/scripts/check-package-files.js"
+  },
+  "dependencies": {
+    "@privenv/protocol": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -2,9 +2,9 @@
 
 Phase 1 uses stdio JSON request/response. Phase 2 may add a Unix domain socket transport.
 
-This document defines protocol shape only. Runtime code is not implemented yet.
+This document defines protocol shape only.
 
-This protocol should later be mirrored in `privenv-guest` so both sides share the same contract.
+`privenv-host` imports shared protocol types and validators from `@privenv/protocol`. The interfaces below mirror that public package contract for readability. Protocol updates should be handled by updating the package version, not by inspecting sibling repositories.
 
 ## Rules
 

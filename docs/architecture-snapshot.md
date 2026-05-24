@@ -19,6 +19,7 @@ It currently owns:
 - safe manifest generation
 - `EffectRequest` handling
 - redacted `EffectResponse` creation
+- shared protocol type and validator usage through `@privenv/protocol`
 
 The current runtime is simulate-only. Real command execution is not implemented.
 
@@ -46,11 +47,11 @@ This document does not claim implementation details from `privenv-guest` beyond 
 - `RedactionSummary`
 - safe manifest shape
 
-For now, protocol documentation, local TypeScript types, and protocol fixtures are duplicated locally. A shared protocol package has not been created yet.
+Shared protocol types and validators now come from `@privenv/protocol`.
 
-Until a shared package exists, changes to `docs/protocol.md` must be mirrored manually through an explicit copied spec, issue, PR text, release note, or other written coordination. A future candidate is `@privenv/protocol`.
+Host-specific config loading, vault loading, audit writing, redaction, execution context resolution, policy validation, runtime flow, and CLI behavior remain local to `privenv-host`.
 
-Host work must not inspect `privenv-guest` to verify compatibility.
+Protocol updates should be handled by updating the `@privenv/protocol` package version and reviewing explicit release notes or copied specs. Host work must not inspect `privenv-guest` or the `privenv-protocol` repository to verify compatibility.
 
 ## Current Workflow
 
@@ -92,14 +93,14 @@ Current non-goals:
 - no raw secret APIs such as `getSecret()`, `getEnv()`, or `rawEnv()`
 - no production vault integration yet
 - no browser/session/cookie capability handling in the current MVP
+- no local ownership of duplicated shared protocol validators
 
 ## Next Decision Points
 
 Open decisions include:
 
-- whether to create `@privenv/protocol`
 - whether to implement stdio transport orchestration across Host and Guest
-- whether to keep Host and Guest packages independent longer
+- when to update to newer `@privenv/protocol` versions
 - when and how to implement real execution, if ever
 - how to model passthrough at an upper layer without adding passthrough mode to Host
 - how to handle browser, session, or cookie capabilities in the future, outside the current MVP

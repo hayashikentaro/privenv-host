@@ -1,4 +1,4 @@
-import type { RedactionSummary } from "../protocol/types.js";
+import type { RedactionSummary } from "@privenv/protocol";
 
 export const REDACTION_TOKEN = "[REDACTED]";
 

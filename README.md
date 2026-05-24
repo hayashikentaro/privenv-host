@@ -172,7 +172,11 @@ The check builds, runs tests, performs a local npm pack inspection, and verifies
 
 ## Protocol Compatibility
 
-`privenv-host` and `privenv-guest` must agree on `EffectRequest`, `EffectResponse`, and safe manifest shapes. For now, protocol docs and types are duplicated locally. Do not inspect `privenv-guest` to compare protocol; use an explicit copied spec, issue, PR text, release note, or future shared package instead.
+`privenv-host` now depends on `@privenv/protocol` for shared `EffectRequest`, `EffectResponse`, redaction summary, safe manifest types, and protocol validators. This reduces protocol drift between packages.
+
+Host-specific config, vault, audit, redaction, execution context, policy, runtime, and CLI behavior remain local to `privenv-host`.
+
+Do not inspect `privenv-guest` or `privenv-protocol` repositories to compare protocol behavior. Handle protocol updates through npm package version updates and explicit release notes or copied specs.
 
 ## Execution Modes
 
@@ -192,8 +196,7 @@ The check builds, runs tests, performs a local npm pack inspection, and verifies
 
 The initial TypeScript skeleton includes:
 
-- protocol types matching `docs/protocol.md`
-- safe manifest types
+- shared protocol types and validators from `@privenv/protocol`
 - audit record types
 - fixture-only redaction utility
 - static command allowlist validation
