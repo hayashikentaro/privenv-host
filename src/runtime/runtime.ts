@@ -10,6 +10,7 @@ import type { EffectRequest, EffectResponse } from "../protocol/index.js";
 import { FIXTURE_SECRETS, redactStreams } from "../redact/index.js";
 import type { RedactionFixture } from "../redact/index.js";
 import { fakeExecute } from "./fakeExecution.js";
+import type { ExecutionMode } from "./executionMode.js";
 
 export interface RuntimeResult {
   response: EffectResponse;
@@ -21,10 +22,13 @@ export function handleEffectRequest(input: {
   hostConfig?: HostConfig;
   vault?: VaultLookup;
   fixtureSecrets?: RedactionFixture[];
+  executionMode?: ExecutionMode;
 }): RuntimeResult {
   const auditId = createAuditId();
   const hostConfig = input.hostConfig ?? FIXTURE_HOST_CONFIG;
   const vault = input.vault;
+  const executionMode = input.executionMode ?? "simulate";
+  const simulated = executionMode === "simulate";
   const guestExecutionPolicy = validateGuestRequestDoesNotCarryExecution(input.request);
 
   if (!guestExecutionPolicy.allowed) {
@@ -33,7 +37,9 @@ export function handleEffectRequest(input: {
       request: input.request,
       decision: "denied",
       status: "denied",
-      errorCode: "policy.guest_execution_fields_denied"
+      errorCode: "policy.guest_execution_fields_denied",
+      executionMode,
+      simulated
     });
 
     return deniedResponse(input.request.id, auditId, audit, "policy.guest_execution_fields_denied", guestExecutionPolicy.reason ?? "EffectRequest must reference a capabilityId, not command execution details.");
@@ -47,7 +53,9 @@ export function handleEffectRequest(input: {
       request: input.request,
       decision: "denied",
       status: "denied",
-      errorCode: "policy.unknown_capability"
+      errorCode: "policy.unknown_capability",
+      executionMode,
+      simulated
     });
 
     return deniedResponse(input.request.id, auditId, audit, "policy.unknown_capability", "Capability is not declared in the Host config.");
@@ -66,10 +74,28 @@ export function handleEffectRequest(input: {
       status: "denied",
       errorCode: "policy.command_denied",
       envNames,
-      classifications
+      classifications,
+      executionMode,
+      simulated
     });
 
     return deniedResponse(input.request.id, auditId, audit, "policy.command_denied", policy.reason ?? "Command is denied by Host policy.");
+  }
+
+  if (executionMode === "execute") {
+    const audit = createAuditRecord({
+      auditId,
+      request: input.request,
+      decision: "denied",
+      status: "error",
+      errorCode: "execution.not_implemented",
+      envNames,
+      classifications,
+      executionMode,
+      simulated: false
+    });
+
+    return deniedResponse(input.request.id, auditId, audit, "execution.not_implemented", "Real command execution is not implemented. Use simulate mode.");
   }
 
   let context;
@@ -95,13 +121,15 @@ export function handleEffectRequest(input: {
       status: "error",
       errorCode: code,
       envNames,
-      classifications
+      classifications,
+      executionMode,
+      simulated
     });
 
     return deniedResponse(input.request.id, auditId, audit, code, message);
   }
 
-  const execution = fakeExecute(context);
+  const execution = fakeExecute(context, executionMode);
   const redacted = redactStreams({
     stdout: execution.stdout,
     stderr: execution.stderr,
@@ -116,7 +144,9 @@ export function handleEffectRequest(input: {
     exitCode: execution.exitCode,
     redactions: redacted.redactions,
     envNames,
-    classifications
+    classifications,
+    executionMode,
+    simulated
   });
 
   return {

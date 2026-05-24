@@ -17,6 +17,8 @@ export function createAuditRecord(input: {
   redactions?: RedactionSummary[];
   envNames?: string[];
   classifications?: string[];
+  executionMode?: AuditRecord["executionMode"];
+  simulated?: boolean;
   errorCode?: string;
 }): AuditRecord {
   return {
@@ -34,6 +36,8 @@ export function createAuditRecord(input: {
     redactions: input.redactions ?? [],
     envNames: input.envNames ? [...input.envNames] : undefined,
     classifications: input.classifications ? [...input.classifications] : undefined,
+    executionMode: input.executionMode ?? "simulate",
+    simulated: input.simulated ?? true,
     errorCode: input.errorCode
   };
 }

@@ -1,4 +1,5 @@
 import type { ResolvedExecutionContext } from "../execution/index.js";
+import type { ExecutionMode } from "./executionMode.js";
 
 export interface FakeExecutionResult {
   exitCode: number;
@@ -6,9 +7,13 @@ export interface FakeExecutionResult {
   stderr: string;
 }
 
-export function fakeExecute(context: ResolvedExecutionContext): FakeExecutionResult {
+export function fakeExecute(context: ResolvedExecutionContext, executionMode: ExecutionMode): FakeExecutionResult {
   // TODO: Replace with approved Host-side execution in a future implementation.
   // This intentionally does not spawn a shell, mutate process.env, or read process.env.
+  if (executionMode !== "simulate") {
+    throw new Error("fakeExecute only supports simulate mode.");
+  }
+
   if (context.capability.id === "cmd.fixture.leaky") {
     return {
       exitCode: 0,

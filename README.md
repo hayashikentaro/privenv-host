@@ -54,6 +54,7 @@ The Guest:
 - [Protocol](docs/protocol.md)
 - [Runtime Flow](docs/runtime-flow.md)
 - [Execution Context](docs/execution-context.md)
+- [Execution Modes](docs/execution-modes.md)
 - [Host Config Spec](docs/config-spec.md)
 - [Vault Spec](docs/vault-spec.md)
 - [MVP Scope](docs/mvp-scope.md)
@@ -81,6 +82,10 @@ privenv-host manifest > privenv.manifest.json
 ## Local Vault
 
 `.privenv/vault.json` is a Host-owned plaintext local vault for development. Guests must never read it. The MVP loader uses it only to materialize env values inside Host-internal execution context resolution. Encryption and external vault integrations are future work.
+
+## Execution Modes
+
+`simulate` is the default and only implemented execution mode. `privenv-host run`, `privenv-host run --simulate`, `privenv-host demo-run`, and `privenv-host demo-run --simulate` all use fake execution only. `--execute` is reserved for future real execution and currently returns `execution.not_implemented`; no real command execution exists yet.
 
 ## CLI Modes
 

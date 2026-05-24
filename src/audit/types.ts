@@ -15,5 +15,7 @@ export interface AuditRecord {
   redactions: RedactionSummary[];
   envNames?: string[];
   classifications?: string[];
+  executionMode: "simulate" | "execute";
+  simulated: boolean;
   errorCode?: string;
 }

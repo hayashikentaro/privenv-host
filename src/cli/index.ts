@@ -4,7 +4,14 @@ import { appendAuditRecord } from "../audit/index.js";
 import { loadHostConfigFromCwd } from "../config/index.js";
 import { createSafeManifest } from "../manifest/index.js";
 import { parseEffectRequest, ProtocolParseError } from "../protocol/index.js";
-import { handleEffectRequest, loadHostRuntimeInputs } from "../runtime/index.js";
+import { handleEffectRequest, isExecutionMode, loadHostRuntimeInputs } from "../runtime/index.js";
+import type { ExecutionMode } from "../runtime/index.js";
+
+export interface CliResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -17,57 +24,109 @@ async function readStdin(): Promise<string> {
 }
 
 async function main(): Promise<void> {
-  const [, , command] = process.argv;
+  const result = await runCli({ args: process.argv.slice(2), stdin: await readStdin(), cwd: process.cwd() });
+  if (result.stderr.length > 0) {
+    process.stderr.write(result.stderr);
+  }
+  process.stdout.write(result.stdout);
+  process.exitCode = result.exitCode;
+}
 
-  if (command !== "run" && command !== "demo-run" && command !== "manifest") {
-    process.stderr.write("Usage: privenv-host run | privenv-host demo-run | privenv-host manifest\n");
-    process.exitCode = 1;
-    return;
+export async function runCli(input: { args: string[]; stdin?: string; cwd: string }): Promise<CliResult> {
+  const parsed = parseArgs(input.args);
+
+  if (!parsed.ok) {
+    return {
+      stdout: "",
+      stderr: `${parsed.message}\n`,
+      exitCode: 1
+    };
   }
 
-  if (command === "manifest") {
-    await emitManifest();
-    return;
+  if (parsed.command === "manifest") {
+    return emitManifest(input.cwd);
   }
-
-  const input = await readStdin();
 
   try {
-    const runtimeInputs = await loadHostRuntimeInputs({ allowFixtureFallback: command === "demo-run" });
-    const request = parseEffectRequest(input);
+    const runtimeInputs = await loadHostRuntimeInputs({ cwd: input.cwd, allowFixtureFallback: parsed.command === "demo-run" });
+    const request = parseEffectRequest(input.stdin ?? "");
     const { response, audit } = handleEffectRequest({
       request,
       hostConfig: runtimeInputs.hostConfig,
-      vault: runtimeInputs.vault
+      vault: runtimeInputs.vault,
+      executionMode: parsed.executionMode
     });
-    await appendAuditSafely(audit);
-    process.stdout.write(`${JSON.stringify(response)}\n`);
+    const stderr = await appendAuditSafely(audit, input.cwd);
+    return {
+      stdout: `${JSON.stringify(response)}\n`,
+      stderr,
+      exitCode: 0
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error.";
     const code = error instanceof ProtocolParseError ? error.code : "runtime.error";
 
-    process.stdout.write(`${JSON.stringify(errorResponse(code, message))}\n`);
-    process.exitCode = 1;
+    return {
+      stdout: `${JSON.stringify(errorResponse(code, message))}\n`,
+      stderr: "",
+      exitCode: 1
+    };
   }
 }
 
-async function appendAuditSafely(audit: Parameters<typeof appendAuditRecord>[0]): Promise<void> {
+function parseArgs(args: string[]):
+  | { ok: true; command: "run" | "demo-run" | "manifest"; executionMode: ExecutionMode }
+  | { ok: false; message: string } {
+  const [command, ...flags] = args;
+  if (command !== "run" && command !== "demo-run" && command !== "manifest") {
+    return { ok: false, message: "Usage: privenv-host run [--simulate] | privenv-host demo-run [--simulate] | privenv-host manifest" };
+  }
+
+  let executionMode: ExecutionMode = "simulate";
+  for (const flag of flags) {
+    if (flag === "--simulate") {
+      executionMode = "simulate";
+      continue;
+    }
+    if (flag === "--execute") {
+      executionMode = "execute";
+      continue;
+    }
+    return { ok: false, message: `Unknown flag: ${flag}` };
+  }
+
+  if (!isExecutionMode(executionMode)) {
+    return { ok: false, message: "Invalid execution mode." };
+  }
+
+  return { ok: true, command, executionMode };
+}
+
+async function appendAuditSafely(audit: Parameters<typeof appendAuditRecord>[0], cwd: string): Promise<string> {
   try {
-    await appendAuditRecord(audit);
+    await appendAuditRecord(audit, { cwd });
+    return "";
   } catch {
-    process.stderr.write("Warning: failed to write Host audit log.\n");
+    return "Warning: failed to write Host audit log.\n";
   }
 }
 
-async function emitManifest(): Promise<void> {
+async function emitManifest(cwd: string): Promise<CliResult> {
   try {
-    const hostConfig = await loadHostConfigFromCwd();
-    process.stdout.write(`${JSON.stringify(createSafeManifest(hostConfig))}\n`);
+    const hostConfig = await loadHostConfigFromCwd(cwd);
+    return {
+      stdout: `${JSON.stringify(createSafeManifest(hostConfig))}\n`,
+      stderr: "",
+      exitCode: 0
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error.";
     const code = "manifest.config_error";
-    process.stdout.write(`${JSON.stringify(errorResponse(code, message))}\n`);
-    process.exitCode = 1;
+    return {
+      stdout: `${JSON.stringify(errorResponse(code, message))}\n`,
+      stderr: "",
+      exitCode: 1
+    };
   }
 }
 
@@ -84,4 +143,6 @@ function errorResponse(code: string, message: string): object {
   };
 }
 
-await main();
+if (process.argv[1]?.endsWith("dist/src/cli/index.js") || process.argv[1]?.endsWith("src/cli/index.ts")) {
+  await main();
+}

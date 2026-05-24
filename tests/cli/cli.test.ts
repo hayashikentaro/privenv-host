@@ -1,17 +1,23 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { runCli } from "../../src/cli/index.js";
 
-const CLI_PATH = join(process.cwd(), "dist/src/cli/index.js");
-
-function runCli(input: string, options?: { command?: "run" | "demo-run"; cwd?: string }) {
-  return spawnSync(process.execPath, [CLI_PATH, options?.command ?? "run"], {
+async function invokeCli(input: string, options?: { command?: "run" | "demo-run"; flags?: string[]; cwd?: string }) {
+  return runCli({
+    args: [options?.command ?? "run", ...(options?.flags ?? [])],
     cwd: options?.cwd ?? process.cwd(),
-    input,
-    encoding: "utf8"
+    stdin: input
+  });
+}
+
+async function invokeManifest(options?: { cwd?: string }) {
+  return runCli({
+    args: ["manifest"],
+    cwd: options?.cwd ?? process.cwd(),
+    stdin: ""
   });
 }
 
@@ -45,9 +51,9 @@ function writeHostConfigWithRequiredEnv(cwd: string): void {
   );
 }
 
-test("run does not use fixture fallback", () => {
+test("run does not use fixture fallback", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-run-no-fallback-"));
-  const child = runCli(
+  const child = await invokeCli(
     JSON.stringify({
       id: "req_cli_no_fallback",
       type: "effect.request",
@@ -56,16 +62,85 @@ test("run does not use fixture fallback", () => {
     { command: "run", cwd }
   );
 
-  assert.equal(child.status, 0);
+  assert.equal(child.exitCode, 0);
   const response = JSON.parse(child.stdout);
   assert.equal(response.requestId, "req_cli_no_fallback");
   assert.equal(response.ok, false);
   assert.equal(response.error.code, "policy.unknown_capability");
 });
 
-test("demo-run can use fixture fallback", () => {
+test("run defaults to simulate", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-run-simulate-default-"));
+  writeHostConfigWithRequiredEnv(cwd);
+  mkdirSync(join(cwd, ".privenv"));
+  writeFileSync(
+    join(cwd, ".privenv", "vault.json"),
+    JSON.stringify({ version: "0.1", secrets: { DATABASE_URL: { value: "fixture-db-url", classification: "secret" } } }),
+    "utf8"
+  );
+
+  const child = await invokeCli(
+    JSON.stringify({ id: "req_run_sim_default", type: "effect.request", capabilityId: "cmd.needs.db" }),
+    { command: "run", cwd }
+  );
+
+  assert.equal(child.exitCode, 0);
+  const response = JSON.parse(child.stdout);
+  assert.equal(response.ok, true);
+  const [audit] = readAuditLog(cwd);
+  assert.equal(audit.executionMode, "simulate");
+  assert.equal(audit.simulated, true);
+});
+
+test("demo-run defaults to simulate", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-demo-simulate-default-"));
+  const child = await invokeCli(
+    JSON.stringify({ id: "req_demo_sim_default", type: "effect.request", capabilityId: "cmd.npm.test" }),
+    { command: "demo-run", cwd }
+  );
+
+  assert.equal(child.exitCode, 0);
+  const response = JSON.parse(child.stdout);
+  assert.equal(response.ok, true);
+  const [audit] = readAuditLog(cwd);
+  assert.equal(audit.executionMode, "simulate");
+  assert.equal(audit.simulated, true);
+});
+
+test("--simulate works", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-simulate-flag-"));
+  const child = await invokeCli(
+    JSON.stringify({ id: "req_sim_flag", type: "effect.request", capabilityId: "cmd.npm.test" }),
+    { command: "demo-run", flags: ["--simulate"], cwd }
+  );
+
+  assert.equal(child.exitCode, 0);
+  const response = JSON.parse(child.stdout);
+  assert.equal(response.ok, true);
+  const [audit] = readAuditLog(cwd);
+  assert.equal(audit.executionMode, "simulate");
+  assert.equal(audit.simulated, true);
+});
+
+test("--execute returns execution.not_implemented", async () => {
+  const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-execute-flag-"));
+  const child = await invokeCli(
+    JSON.stringify({ id: "req_execute_flag", type: "effect.request", capabilityId: "cmd.npm.test" }),
+    { command: "demo-run", flags: ["--execute"], cwd }
+  );
+
+  assert.equal(child.exitCode, 0);
+  const response = JSON.parse(child.stdout);
+  assert.equal(response.ok, false);
+  assert.equal(response.error.code, "execution.not_implemented");
+  const [audit] = readAuditLog(cwd);
+  assert.equal(audit.executionMode, "execute");
+  assert.equal(audit.simulated, false);
+});
+
+test("demo-run can use fixture fallback", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-demo-fallback-"));
-  const child = runCli(
+  const child = await invokeCli(
     JSON.stringify({
       id: "req_cli_demo",
       type: "effect.request",
@@ -74,7 +149,7 @@ test("demo-run can use fixture fallback", () => {
     { command: "demo-run", cwd }
   );
 
-  assert.equal(child.status, 0);
+  assert.equal(child.exitCode, 0);
   const response = JSON.parse(child.stdout);
   assert.equal(response.requestId, "req_cli_demo");
   assert.equal(response.ok, true);
@@ -83,11 +158,11 @@ test("demo-run can use fixture fallback", () => {
   assert.doesNotMatch(JSON.stringify(response), /fixture_secret_value_123|test_only_token_do_not_use/);
 });
 
-test("normal run with required env and missing vault fails safely", () => {
+test("normal run with required env and missing vault fails safely", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-missing-vault-"));
   writeHostConfigWithRequiredEnv(cwd);
 
-  const child = runCli(
+  const child = await invokeCli(
     JSON.stringify({
       id: "req_cli_missing_vault",
       type: "effect.request",
@@ -96,7 +171,7 @@ test("normal run with required env and missing vault fails safely", () => {
     { command: "run", cwd }
   );
 
-  assert.equal(child.status, 0);
+  assert.equal(child.exitCode, 0);
   const response = JSON.parse(child.stdout);
   assert.equal(response.requestId, "req_cli_missing_vault");
   assert.equal(response.ok, false);
@@ -105,14 +180,10 @@ test("normal run with required env and missing vault fails safely", () => {
   assert.doesNotMatch(JSON.stringify(response), /fixture_secret_value_123|fixture-db-url|test_only_token_do_not_use/);
 });
 
-test("CLI returns error EffectResponse for invalid protocol", () => {
-  const child = runCli(JSON.stringify({
-    id: "req_cli_bad",
-    type: "secret.request",
-    name: "DEPLOY_TOKEN"
-  }));
+test("CLI returns error EffectResponse for invalid protocol", async () => {
+  const child = await invokeCli(JSON.stringify({ id: "req_cli_bad", type: "secret.request", name: "DEPLOY_TOKEN" }));
 
-  assert.equal(child.status, 1);
+  assert.equal(child.exitCode, 1);
   const response = JSON.parse(child.stdout);
   assert.equal(response.requestId, "unknown");
   assert.equal(response.type, "effect.response");
@@ -120,61 +191,45 @@ test("CLI returns error EffectResponse for invalid protocol", () => {
   assert.equal(response.error.code, "protocol.parse_error");
 });
 
-test("run can load local Host config and vault", () => {
+test("run can load local Host config and vault", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-local-vault-"));
   mkdirSync(join(cwd, ".privenv"));
   writeHostConfigWithRequiredEnv(cwd);
   writeFileSync(
     join(cwd, ".privenv", "vault.json"),
-    JSON.stringify({
-      version: "0.1",
-      secrets: {
-        DATABASE_URL: { value: "fixture-db-url", classification: "secret" }
-      }
-    }),
+    JSON.stringify({ version: "0.1", secrets: { DATABASE_URL: { value: "fixture-db-url", classification: "secret" } } }),
     "utf8"
   );
 
-  const child = runCli(
-    JSON.stringify({
-      id: "req_cli_local_vault",
-      type: "effect.request",
-      capabilityId: "cmd.needs.db"
-    }),
+  const child = await invokeCli(
+    JSON.stringify({ id: "req_cli_local_vault", type: "effect.request", capabilityId: "cmd.needs.db" }),
     { command: "run", cwd }
   );
 
-  assert.equal(child.status, 0);
+  assert.equal(child.exitCode, 0);
   const response = JSON.parse(child.stdout);
   assert.equal(response.ok, true);
   assert.doesNotMatch(JSON.stringify(response), /fixture-db-url/);
 });
 
-function runManifest(options?: { cwd?: string }) {
-  return spawnSync(process.execPath, [CLI_PATH, "manifest"], {
-    cwd: options?.cwd ?? process.cwd(),
-    encoding: "utf8"
-  });
-}
-
-test("manifest command works with fixture config", () => {
+test("manifest command works with fixture config", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-manifest-fixture-"));
-  const child = runManifest({ cwd });
+  const child = await invokeManifest({ cwd });
 
-  assert.equal(child.status, 0);
+  assert.equal(child.exitCode, 0);
   const manifest = JSON.parse(child.stdout);
   assert.equal(manifest.version, "0.1");
   assert.equal(manifest.capabilities.some((capability: { id: string }) => capability.id === "cmd.npm.test"), true);
   assert.doesNotMatch(child.stdout, /fixture_secret_value_123|test_only_token_do_not_use|fixture-db-url/);
 });
 
-test("manifest command works with privenv.host.json and does not require vault", () => {
+test("manifest command works with privenv.host.json and does not require vault", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-manifest-config-"));
   writeHostConfigWithRequiredEnv(cwd);
 
-  const child = runManifest({ cwd });
+  const child = await invokeManifest({ cwd });
 
-  assert.equal(child.status, 0);
+  assert.equal(child.exitCode, 0);
   const manifest = JSON.parse(child.stdout);
   assert.equal(manifest.capabilities[0].id, "cmd.needs.db");
   assert.equal(manifest.capabilities[0].env[0].name, "DATABASE_URL");
@@ -182,7 +237,7 @@ test("manifest command works with privenv.host.json and does not require vault",
   assert.doesNotMatch(child.stdout, /fixture-db-url|postgres:\/\/|fixture_secret_value_123|test_only_token_do_not_use/);
 });
 
-test("manifest command returns structured error for invalid config", () => {
+test("manifest command returns structured error for invalid config", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-manifest-invalid-"));
   writeFileSync(
     join(cwd, "privenv.host.json"),
@@ -203,62 +258,50 @@ test("manifest command returns structured error for invalid config", () => {
     "utf8"
   );
 
-  const child = runManifest({ cwd });
+  const child = await invokeManifest({ cwd });
 
-  assert.equal(child.status, 1);
+  assert.equal(child.exitCode, 1);
   const response = JSON.parse(child.stdout);
   assert.equal(response.ok, false);
   assert.equal(response.error.code, "manifest.config_error");
   assert.doesNotMatch(child.stdout, /fixture_secret_value_123|test_only_token_do_not_use/);
 });
 
-
-test("run writes safe audit JSONL records", () => {
+test("run writes safe audit JSONL records", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-audit-success-"));
   mkdirSync(join(cwd, ".privenv"));
   writeHostConfigWithRequiredEnv(cwd);
   writeFileSync(
     join(cwd, ".privenv", "vault.json"),
-    JSON.stringify({
-      version: "0.1",
-      secrets: {
-        DATABASE_URL: { value: "fixture-db-url", classification: "secret" }
-      }
-    }),
+    JSON.stringify({ version: "0.1", secrets: { DATABASE_URL: { value: "fixture-db-url", classification: "secret" } } }),
     "utf8"
   );
 
-  const child = runCli(
-    JSON.stringify({
-      id: "req_cli_audit_success",
-      type: "effect.request",
-      capabilityId: "cmd.needs.db"
-    }),
+  const child = await invokeCli(
+    JSON.stringify({ id: "req_cli_audit_success", type: "effect.request", capabilityId: "cmd.needs.db" }),
     { command: "run", cwd }
   );
 
-  assert.equal(child.status, 0);
+  assert.equal(child.exitCode, 0);
   const records = readAuditLog(cwd);
   assert.equal(records.length, 1);
   assert.equal(records[0].requestId, "req_cli_audit_success");
   assert.equal(records[0].capabilityId, "cmd.needs.db");
   assert.equal(typeof records[0].timestamp, "string");
+  assert.equal(records[0].executionMode, "simulate");
+  assert.equal(records[0].simulated, true);
   assert.deepEqual(records[0].envNames, ["DATABASE_URL"]);
   assert.doesNotMatch(JSON.stringify(records[0]), /fixture-db-url|fixture_secret_value_123|test_only_token_do_not_use/);
 });
 
-test("denied requests are audited", () => {
+test("denied requests are audited", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-audit-denied-"));
-  const child = runCli(
-    JSON.stringify({
-      id: "req_cli_audit_denied",
-      type: "effect.request",
-      capabilityId: "cmd.npm.test"
-    }),
+  const child = await invokeCli(
+    JSON.stringify({ id: "req_cli_audit_denied", type: "effect.request", capabilityId: "cmd.npm.test" }),
     { command: "run", cwd }
   );
 
-  assert.equal(child.status, 0);
+  assert.equal(child.exitCode, 0);
   const records = readAuditLog(cwd);
   assert.equal(records.length, 1);
   assert.equal(records[0].decision, "denied");
@@ -266,12 +309,12 @@ test("denied requests are audited", () => {
   assert.equal(records[0].errorCode, "policy.unknown_capability");
 });
 
-test("manifest command does not create audit log", () => {
+test("manifest command does not create audit log", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "privenv-host-cli-manifest-no-audit-"));
   writeHostConfigWithRequiredEnv(cwd);
 
-  const child = runManifest({ cwd });
+  const child = await invokeManifest({ cwd });
 
-  assert.equal(child.status, 0);
+  assert.equal(child.exitCode, 0);
   assert.equal(existsSync(join(cwd, ".privenv", "audit.log.jsonl")), false);
 });

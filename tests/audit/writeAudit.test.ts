@@ -17,6 +17,8 @@ function auditRecord(overrides: Partial<AuditRecord> = {}): AuditRecord {
     redactions: [],
     envNames: ["FIXTURE_TOKEN"],
     classifications: ["secret"],
+    executionMode: "simulate",
+    simulated: true,
     ...overrides
   };
 }

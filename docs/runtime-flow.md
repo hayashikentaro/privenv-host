@@ -2,6 +2,10 @@
 
 This document describes the initial Host-side runtime skeleton. It is not a production secret manager and does not implement real command execution.
 
+## Execution Modes
+
+The runtime defaults to `simulate`. Fake execution is called only when `executionMode === "simulate"`. If `--execute` requests `execute`, runtime returns `execution.not_implemented`, records `simulated: false`, and does not spawn any process.
+
 ## CLI Modes
 
 `privenv-host run` is normal mode and uses `allowFixtureFallback: false`. It never silently uses fixture config or fixture vault data.
