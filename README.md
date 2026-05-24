@@ -144,6 +144,18 @@ privenv-host manifest > privenv.manifest.json
 
 `.privenv/vault.json` is a Host-owned plaintext local vault for development. Guests must never read it. The MVP loader uses it only to materialize env values inside Host-internal execution context resolution. Encryption and external vault integrations are future work.
 
+## Package Hygiene
+
+This package is not production-ready. Real command execution is not implemented, and npm publication is future work.
+
+Check the future npm package contents locally with:
+
+```sh
+npm run pack:check
+```
+
+The check builds, runs tests, performs a local npm pack inspection, and verifies that unsafe local files such as `.env`, `.privenv/`, vault files, audit logs, top-level source files, and compiled tests are not included.
+
 ## Execution Modes
 
 `simulate` is the default and only implemented execution mode. `privenv-host run`, `privenv-host run --simulate`, `privenv-host demo-run`, and `privenv-host demo-run --simulate` all use fake execution only. `--execute` is reserved for future real execution and currently returns `execution.not_implemented`; no real command execution exists yet.

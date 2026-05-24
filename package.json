@@ -11,7 +11,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test dist/tests",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "dev": "npm run build --silent && node dist/src/cli/index.js"
+    "dev": "npm run build --silent && node dist/src/cli/index.js",
+    "pack:check": "npm run build && npm test && npm pack --silent | node dist/scripts/check-package-files.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -19,5 +20,12 @@
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "files": [
+    "dist/src/",
+    "dist/scripts/",
+    "README.md",
+    "LICENSE",
+    "docs/"
+  ]
 }
