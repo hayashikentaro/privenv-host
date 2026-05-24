@@ -1,0 +1,10 @@
+{
+  "requestId": "req_fixture_error_001",
+  "type": "effect.response",
+  "ok": false,
+  "error": {
+    "code": "fixture.error",
+    "message": "Fixture error response only."
+  },
+  "auditId": "audit_fixture_error_001"
+}

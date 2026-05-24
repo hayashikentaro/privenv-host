@@ -1,0 +1,31 @@
+{
+  "version": "0.1",
+  "capabilities": [
+    {
+      "id": "cmd.npm.test",
+      "kind": "command",
+      "description": "Run npm test.",
+      "command": {
+        "program": "npm",
+        "args": ["test"]
+      },
+      "env": []
+    },
+    {
+      "id": "cmd.fixture.with.env",
+      "kind": "command",
+      "description": "Fixture capability with an env name only.",
+      "command": {
+        "program": "npm",
+        "args": ["test"]
+      },
+      "env": [
+        {
+          "name": "EXAMPLE_SERVICE_TOKEN",
+          "source": "secret",
+          "exposedToGuest": false
+        }
+      ]
+    }
+  ]
+}

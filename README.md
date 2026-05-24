@@ -90,6 +90,7 @@ The Guest:
 - [Guest Boundary](docs/guest-boundary.md)
 - [Examples](docs/examples.md)
 - [Protocol](docs/protocol.md)
+- [Protocol Compatibility](docs/protocol-compatibility.md)
 - [Runtime Flow](docs/runtime-flow.md)
 - [Execution Context](docs/execution-context.md)
 - [Execution Modes](docs/execution-modes.md)
@@ -167,6 +168,10 @@ npm run pack:check
 ```
 
 The check builds, runs tests, performs a local npm pack inspection, and verifies that unsafe local files such as `.env`, `.privenv/`, vault files, audit logs, top-level source files, and compiled tests are not included.
+
+## Protocol Compatibility
+
+`privenv-host` and `privenv-guest` must agree on `EffectRequest`, `EffectResponse`, and safe manifest shapes. For now, protocol docs and types are duplicated locally. Do not inspect `privenv-guest` to compare protocol; use an explicit copied spec, issue, PR text, release note, or future shared package instead.
 
 ## Execution Modes
 

@@ -10,6 +10,7 @@ Guidance for future Codex agents working in `privenv-host`.
 - Do not inspect `privenv-guest`.
 - If you are not in `privenv-host`, stop and report it.
 - If you need information from `privenv-guest`, stop and report that need instead of inspecting it.
+- Do not inspect `privenv-guest` to compare protocol compatibility. Request an explicit copied spec or shared protocol package instead.
 
 ## Current Stage
 

@@ -1,0 +1,12 @@
+{
+  "requestId": "req_fixture_001",
+  "type": "effect.response",
+  "ok": true,
+  "result": {
+    "exitCode": 0,
+    "stdout": "fixture output only\n",
+    "stderr": "",
+    "redactions": []
+  },
+  "auditId": "audit_fixture_001"
+}

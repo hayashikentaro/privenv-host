@@ -1,0 +1,10 @@
+{
+  "id": "req_fixture_001",
+  "type": "effect.request",
+  "capabilityId": "cmd.npm.test",
+  "metadata": {
+    "guestName": "fixture-guest",
+    "guestRunId": "fixture-run-001",
+    "reason": "fixture protocol conformance"
+  }
+}
